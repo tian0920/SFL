@@ -566,8 +566,8 @@ class CINIC10(BaseDataset):
             torch.save(torch.tensor(targets, dtype=torch.long), root / "targets.pt")
 
         super().__init__(
-            data=torch.load(root / "data.pt"),
-            targets=torch.load(root / "targets.pt"),
+            data=torch.load(root / "data.pt", weights_only=True),
+            targets=torch.load(root / "targets.pt", weights_only=True),
             classes=list(range(len(classes))),
             test_data_transform=test_data_transform,
             test_target_transform=test_target_transform,

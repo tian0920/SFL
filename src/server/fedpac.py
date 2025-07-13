@@ -51,12 +51,25 @@ class FedPACServer(FedAvgServer):
                 dtype=torch.float,
                 device=self.device,
             )
+            # if len(prototypes) > 0:
+            #     weights /= weights.sum()
+            #     prototypes = torch.stack(prototypes, dim=-1).to(self.device)
+            #     self.global_prototypes[i] = torch.sum(
+            #         prototypes * weights, dim=-1
+            #     ).cpu()
+
             if len(prototypes) > 0:
                 weights /= weights.sum()
                 prototypes = torch.stack(prototypes, dim=-1).to(self.device)
-                self.global_prototypes[i] = torch.sum(
-                    prototypes * weights, dim=-1
-                ).cpu()
+
+                # 检查 prototypes 和 weights 的尺寸是否匹配
+                if prototypes.size(1) != weights.size(0):
+                    print(f"Mismatch in dimensions: prototypes size {prototypes.size()} "
+                          f"and weights size {weights.size()}. Skipping aggregation.")
+                else:
+                    self.global_prototypes[i] = torch.sum(
+                        prototypes * weights, dim=-1  # 确保 weights 具有合适的形状
+                    ).cpu()
 
     def aggregate_client_updates(
         self, client_packages: OrderedDict[int, dict[str, Any]]

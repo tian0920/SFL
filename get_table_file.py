@@ -3,7 +3,7 @@ import re
 from collections import defaultdict
 
 # 指定log文件夹路径
-log_dir = "experiment_logs/alpha=0.1/baseline"
+log_dir = "infocom_experiment/baseline/Exp_1/alpha=0.1"
 
 # 初始化存储结构：方法 → 数据集 → 数值
 data = defaultdict(dict)
@@ -14,9 +14,10 @@ for filename in os.listdir(log_dir):
     if filename.endswith(".log"):
         # 提取方法名和数据集名
         name_parts = filename.replace(".log", "").split("_")
+        # print(name_parts)
         if len(name_parts) < 2:
             continue  # 不符合命名规则跳过
-        method, dataset = name_parts[0], name_parts[1]
+        method, dataset = name_parts[0], name_parts[-1]
         datasets.add(dataset)
 
         # 读取文件内容
