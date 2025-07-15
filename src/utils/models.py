@@ -122,6 +122,12 @@ class DecoupledModel(nn.Module):
 
         return feature_list
 
+    def get_classifier_output(self, x: Tensor) -> Tensor:
+        """
+        获取分类器的输出（不经过特征提取部分，仅分类器部分）。
+        """
+        return self.classifier(x)
+
 
 # CNN used in FedAvg
 class FedAvgCNN(DecoupledModel):
@@ -137,7 +143,7 @@ class FedAvgCNN(DecoupledModel):
         "cifar10": 1600,
         "cinic10": 1600,
         "cifar100": 1600,
-        "tiny_imagenet": 3200,
+        "tiny_imagenet": 10816,  ## 原 3200
         "celeba": 133824,
         "svhn": 1600,
         "usps": 800,
