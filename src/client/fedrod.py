@@ -23,9 +23,8 @@ def balanced_softmax_loss(
 
 class FedRoDClient(FedAvgClient):
     def __init__(self, hypernetwork: torch.nn.Module, **commons):
-        # commons["model"] = FedRoDModel(
-        commons["model"] = FedRoDModel_new(
-            commons["model"], commons["args"].fedrod.eval_per, commons["args"].fedrod.phead, commons["args"].fedrod.freeze_generic_classifier
+        commons["model"] = FedRoDModel(
+            commons["model"], commons["args"].fedrod.eval_per
         )
         super().__init__(**commons)
         self.hypernetwork: torch.nn.Module = None
@@ -93,59 +92,20 @@ class FedRoDClient(FedAvgClient):
 
                 x, y = x.to(self.device), y.to(self.device)
                 logit_g, logit_p = self.model(x)
+                loss_g = balanced_softmax_loss(
+                    logit_g,
+                    y,
+                    self.args.fedrod.gamma,
+                    self.clients_label_counts[self.client_id],
+                )
                 loss_p = self.criterion(logit_p, y)
-
-                if self.args.fedrod.bsm and self.args.fedrod.ghead:
-                    loss_g = balanced_softmax_loss(
-                        logit_g,
-                        y,
-                        self.args.fedrod.gamma,
-                        self.clients_label_counts[self.client_id],
-                    )
-                    if self.args.fedrod.phead:
-                        loss = loss_g + loss_p
-                    else:
-                        loss = loss_g
-                        self.optimizer.zero_grad()
-                        loss_g.backward()
-                        self.optimizer.step()
-                elif self.args.fedrod.ghead:
-                    loss_g = self.criterion(logit_g, y)
-                    if self.args.fedrod.phead:
-                        loss = loss_g + loss_p
-                        self.optimizer.zero_grad()
-                        loss_g.backward()
-                        self.optimizer.step()
-                    else:
-                        loss = loss_g
-                        self.optimizer.zero_grad()
-                        loss_g.backward()
-                        self.optimizer.step()
-                else:
-                    loss = loss_p
-                    self.optimizer.zero_grad()
-                    loss.backward()
-                    self.optimizer.step()
-
-                # 检查梯度
-                # feature_extractor_has_grad = False
-                # for name, param in self.model.generic_model.named_parameters():
-                #     if 'classifier' not in name and param.grad is not None:
-                #         print(f"Feature extractor layer {name} gradient mean: {param.grad.abs().mean().item()}")
-                        # feature_extractor_has_grad = True
-                # if not feature_extractor_has_grad:
-                    # if _ == 4:
-                    #     print("No gradients in feature extractor for loss_p")
-
-            # 检查zg和zp
-            # zg = self.model.zg
-            # zp = self.model.zp
-            # if not torch.equal(zg, zp):
-            #     diff = (zg - zp).abs().mean().item()
-            #     print(f"Average difference between zg and zp: {diff}")
+                loss = loss_g + loss_p
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
 
             if self.lr_scheduler is not None:
-                    self.lr_scheduler.step()
+                self.lr_scheduler.step()
 
         if self.args.fedrod.hyper and self.first_time_selected:
             # This part has no references on the FedRoD paper
@@ -162,7 +122,6 @@ class FedRoDClient(FedAvgClient):
             hyper_loss.backward()
             self.hyper_optimizer.step()
             self.hypernetwork.cpu()
-
 
     def finetune(self):
         self.model.train()
@@ -192,51 +151,13 @@ class FedRoDModel(DecoupledModel):
         self.eval_per = eval_per
 
     def forward(self, x):
-        zg = self.generic_model.get_last_features(x, detach=False)
-        zp = self.generic_model.get_last_features(x, detach=True)
-        logit_g = self.generic_model.classifier(zg)
-        logit_p = self.personalized_classifier(zp)
+        z = self.generic_model.get_last_features(x, detach=False)
+        logit_g = self.generic_model.classifier(z)
+        logit_p = self.personalized_classifier(z)
         if self.training:
             return logit_g, logit_p
         else:
             if self.eval_per:
-                return logit_p          # 论文里面的结果：logit_p+ logit_g
-            else:
-                return logit_g
-
-
-class FedRoDModel_new(DecoupledModel):
-    def __init__(self, generic_model: DecoupledModel, eval_per, phead, freeze_generic_classifier=True):
-        super().__init__()
-        self.generic_model = generic_model
-        self.personalized_classifier = deepcopy(generic_model.classifier)
-        self.eval_per = eval_per
-        self.phead = phead
-        self.freeze_generic_classifier = freeze_generic_classifier
-        if self.freeze_generic_classifier:
-            for param in self.generic_model.classifier.parameters():
-                param.requires_grad = False
-            print("Frozen generic_model.classifier parameters")
-        else:
-            for param in self.generic_model.classifier.parameters():
-                param.requires_grad = True
-            print("Updated generic_model.classifier parameters")
-
-
-
-    def forward(self, x):
-        zg = self.generic_model.get_last_features(x, detach=False)
-        zp = self.generic_model.get_last_features(x, detach=True)
-
-        logit_g = self.generic_model.classifier(zg)
-        logit_p = self.personalized_classifier(zp)
-        if self.training:
-            return logit_g, logit_p
-        else:
-            if self.eval_per:
-                if self.phead:
-                    return logit_p          # 论文里面的结果：logit_p + logit_g
-                else:
-                    return logit_g
+                return logit_p
             else:
                 return logit_g

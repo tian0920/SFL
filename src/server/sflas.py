@@ -18,8 +18,6 @@ class SFLASServer(FedAvgServer):
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
-        parser.add_argument("--alignment_lr", type=float, default=0.01)
-        parser.add_argument("--alignment_epoch", type=int, default=1)
         return parser.parse_args(args_list)
 
     def __init__(self, args: DictConfig):

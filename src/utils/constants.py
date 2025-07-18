@@ -16,7 +16,6 @@ class MODE(Enum):
     SEQUENTIAL = 2
     PER_SEQUENTIAL = 3
 
-
 DEFAULTS = {
     "method": "fedavg",
     "dataset": {"name": "mnist"},

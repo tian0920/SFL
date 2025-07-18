@@ -42,13 +42,20 @@ def build_command(method, dataset, ig_ratio, alpha_tmp, score=None):
             'common.join_ratio=0.5'
         ]
     else:
+        # return [
+        #     sys.executable,
+        #     'main.py',
+        #     f'method={method}',
+        #     f'dataset.name={dataset}',
+        #     f'{method}.fisher_threshold={ig_ratio}',
+        #     'model.name=lenet5',
+        # ]
         return [
             sys.executable,
             'main.py',
             f'method={method}',
             f'dataset.name={dataset}',
-            f'{method}.fisher_threshold={ig_ratio}',
-            'model.name=lenet5',
+            f'{method}.lambda_global={ig_ratio}',
         ]
 
 
@@ -59,22 +66,21 @@ def build_log_filename(method, dataset, ig_ratio, score=None):
     if method == 'psfl':
         return f"{method}+{score}_{dataset}_{ig_ratio}.log"
     else:
-        return f"psfl+fisher_{dataset}_{ig_ratio}.log"
+        # return f"psfl+fisher_{dataset}_{ig_ratio}.log"
+        return f"sflas_{dataset}_{ig_ratio}.log"
 
 
 def main():
     # 定义参数
-    datasets_name = ['medmnistA', ] # 'cifar10', 'cifar100', 'svhn', 'fmnist', 'medmnistC', 'mnist', 'emnist'
-    # datasets_name = [''] # 'emnist',
-    ig_values = [1, 0.99, 0.999, 0.9991, 0.9992, 0.9993, 0.9994,
-                 0.9995, 0.9996, 0.9997, 0.9998, 0.9999, 0.99991, 0.99993, 0.99995, 0.99997, 0.99999, 0.999999]
-    # ig_values = [0.9996, 0.9997, 0.9998, 0.9999, 0.99991, 0.99993, 0.99995, 0.99997, 0.99999, 0.999999]
-    methods = ['psfl',] #  'feddpa', 'psfl',
+    datasets_name = ['cifar10', 'cifar100', 'fmnist', 'cinic10'] # 'cifar10', 'cifar100', 'svhn', 'fmnist', 'medmnistC', 'mnist', 'emnist'
+    ig_values = [0.4, 0.5, 0.6, ]
+    # ig_values = [0.7, 0.8, 0.9]
+    methods = ['sflas',] #  'feddpa', 'psfl',
     alpha = [0.0]
     score_list = ['obp', 'diff']
 
     # 创建一个目录来保存所有日志
-    log_dir = Path("experiment_logs")
+    log_dir = Path("test_experiment")
     log_dir.mkdir(exist_ok=True)
 
     # 遍历所有组合并运行实验

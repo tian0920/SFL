@@ -115,7 +115,7 @@ class FedAvgClient:
                     f"[{color}]({split}set)[/{color}]\t"
                     f"[red]loss: {eval_results['before'][split].loss:.4f} -> "
                     f"{eval_results['after'][split].loss:.4f}\t[/red]"
-                    f"[blue]accuracy: {eval_results['before'][split].accuracy:.2f}% -> {eval_results['after'][split].accuracy:.2f}%[/blue]"
+                    f"[blue]accuracy: {eval_results['before'][split].accuracy:.3f}% -> {eval_results['after'][split].accuracy:.3f}%[/blue]"
                 )
 
         eval_results["message"] = eval_msg

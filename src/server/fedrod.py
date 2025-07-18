@@ -10,11 +10,6 @@ from src.client.fedrod import FedRoDClient
 from src.server.fedavg import FedAvgServer
 from src.utils.constants import NUM_CLASSES
 
-from pathlib import Path
-import os
-from src.utils.logger import Logger
-from rich.console import Console
-
 
 class FedRoDServer(FedAvgServer):
     algorithm_name: str = "FedRoD"
@@ -30,11 +25,9 @@ class FedRoDServer(FedAvgServer):
         parser.add_argument("--hyper_lr", type=float, default=0.1)
         parser.add_argument("--hyper_hidden_dim", type=int, default=32)
         parser.add_argument("--eval_per", type=int, default=1)
-        parser.add_argument("--bsm", type=bool, default=True)
         return parser.parse_args(args_list)
 
-    def __init__(
-        self, args: DictConfig):
+    def __init__(self, args: DictConfig):
         super().__init__(args, False)
         self.hyper_params_dict = None
         self.hypernetwork: nn.Module = None
@@ -52,35 +45,6 @@ class FedRoDServer(FedAvgServer):
                 self.hyper_params_dict[key] = param.data.clone()
         self.first_time_selected = [True for _ in self.train_clients]
         self.init_trainer(hypernetwork=self.hypernetwork)
-
-        bsm_name = "BSM" if self.args.fedrod.bsm else "NoBSM"
-        G_name = "G" if self.args.fedrod.ghead else "NoG"
-        P_name = "P" if self.args.fedrod.phead else "NoP"
-        hyper_name = "Hyper" if self.args.fedrod.hyper else "NoHyper"
-
-        # Directly combine into a complete output directory
-        self.output_dir = (
-                Path("./out")
-                / self.args.method
-                / self.args.dataset.name
-                / f"{bsm_name}_{G_name}_{P_name}_{hyper_name}"
-        )
-
-        print(self.output_dir)
-
-        if not os.path.isdir(self.output_dir) and (
-                self.args.common.save_log
-                or self.args.common.save_learning_curve_plot
-                or self.args.common.save_metrics
-        ):
-            os.makedirs(self.output_dir, exist_ok=True)
-
-        stdout = Console(log_path=False, log_time=False, soft_wrap=True, tab_size=4)
-        self.logger = Logger(
-            stdout=stdout,
-            enable_log=self.args.common.save_log,
-            logfile_path=self.output_dir / "main.log",
-        )
 
     def package(self, client_id: int):
         server_package = super().package(client_id)

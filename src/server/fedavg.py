@@ -855,7 +855,7 @@ class FedAvgServer:
                                     self.logger.log(
                                         f"[{colors[split]}]({split})[/{colors[split]}] "
                                         f"[{colors[stage]}]{stage}[/{colors[stage]}] "
-                                        f"fine-tuning: {max_acc:.2f}% at epoch {epoch}"
+                                        f"fine-tuning: {max_acc:.3f}% at epoch {epoch}"
                                     )
 
         if self.train_clients == self.val_clients == self.test_clients:
@@ -987,8 +987,8 @@ class FedAvgServer:
                     split: {
                         "loss": f"[red]{metrics['before'][split].loss:.4f} -> "
                         f"{metrics['after'][split].loss:.4f}[/red]",
-                        "accuracy": f"[blue]{metrics['before'][split].accuracy:.2f}% -> "
-                        f"{metrics['after'][split].accuracy:.2f}%[/blue]",
+                        "accuracy": f"[blue]{metrics['before'][split].accuracy:.3f}% -> "
+                        f"{metrics['after'][split].accuracy:.3f}%[/blue]",
                     }
                     for split, flag in [
                         (

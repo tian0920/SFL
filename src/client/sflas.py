@@ -30,10 +30,6 @@ class SFLASClient(FedAvgClient):
         super().set_parameters(package)
         self.current_epoch = package["current_epoch"]
 
-        # embedding 权重解冻/固定，以更好区分分类边界
-        # if self.current_epoch + 1 >= 10:
-        #     self.model.target_embedding.weight.requires_grad = False
-
         if package["prev_model_state"] is not None:
             self.prev_model.load_state_dict(package["prev_model_state"])
         else:
@@ -43,13 +39,13 @@ class SFLASClient(FedAvgClient):
         else:
             self.model.load_state_dict(self.prev_model.state_dict())
 
-    # def align_federated_parameters(self, package):   ##### 原版
+    # def align_federated_parameters(self, package):   ##### 原版，不加Head蒸馏
     #     self.prev_model.eval()
     #     self.prev_model.to(self.device)
     #     self.model.train()
     #     self.dataset.train()
     #
-    #     prototypes = [[] for _ in range(NUM_CLASSES[self.args.dataset.name])]
+    #     self.prototypes = [[] for _ in range(NUM_CLASSES[self.args.dataset.name])]
     #
     #     with torch.no_grad():
     #         for x, y in self.trainloader:
@@ -57,11 +53,11 @@ class SFLASClient(FedAvgClient):
     #             features = self.prev_model.get_last_features(x)
     #
     #             for y, feat in zip(y, features):
-    #                 prototypes[y].append(feat)
+    #                 self.prototypes[y].append(feat)
     #
     #     mean_prototypes = [
     #         torch.stack(prototype).mean(dim=0) if prototype else None
-    #         for prototype in prototypes
+    #         for prototype in self.prototypes
     #     ]
     #
     #     alignment_optimizer = torch.optim.SGD(
@@ -88,78 +84,157 @@ class SFLASClient(FedAvgClient):
     #
     #     self.prev_model.cpu()
 
-    def align_federated_parameters(self, package):
-        self.prev_model.eval()  # 将教师模型设置为评估模式
+    # def align_federated_parameters(self, package): #### 单教师蒸馏
+    #     self.prev_model.eval()  # 将教师模型设置为评估模式
+    #     self.prev_model.to(self.device)
+    #     self.model.train()  # 将学生模型设置为训练模式
+    #     self.model.to(self.device)
+    #     self.dataset.train()
+    #
+    #     self.prototypes = [[] for _ in range(NUM_CLASSES[self.args.dataset.name])]
+    #
+    #     with torch.no_grad():
+    #         for x, y in self.trainloader:
+    #             x, y = x.to(self.device), y.to(self.device)
+    #             features = self.prev_model.get_last_features(x)  # 获取教师模型特征
+    #             for label, feat in zip(y, features):
+    #                 self.prototypes[label].append(feat)
+    #
+    #     mean_prototypes = [
+    #         torch.stack(prototype).mean(dim=0) if prototype else None
+    #         for prototype in self.prototypes
+    #     ]
+    #
+    #     alignment_optimizer = torch.optim.SGD(
+    #         list(self.model.base.parameters()) + list(self.model.classifier.parameters()),  # 更新body和classifier部分
+    #         lr=self.args.sflas.alignment_lr
+    #     )
+    #
+    #     for _ in range(self.args.sflas.alignment_epoch):
+    #         for x, y in self.trainloader:
+    #             x, y = x.to(self.device), y.to(self.device)
+    #             features = self.model.get_last_features(x, detach=False)  # 获取学生模型的特征
+    #             loss = 0
+    #             for label in y.unique().tolist():
+    #                 if mean_prototypes[label] is not None:
+    #                     loss += F.mse_loss(
+    #                         features[y == label].mean(dim=0), mean_prototypes[label]
+    #                     )
+    #
+    #             # 知识蒸馏部分（只蒸馏head部分）
+    #             with torch.no_grad():
+    #                 teacher_features = self.prev_model.get_last_features(x, detach=True)  # 获取教师模型的特征
+    #                 teacher_output = self.prev_model.classifier(teacher_features)  # 获取教师分类器的输出
+    #             student_output = self.model.classifier(features)  # 获取学生分类器的输出
+    #
+    #             if self.args.dataset.name == "cifar100":
+    #                 distillation_loss = F.kl_div(
+    #                     F.log_softmax(student_output / 1, dim=1),
+    #                     F.softmax(teacher_output / 1, dim=1),
+    #                     reduction='batchmean'
+    #                 ) * (1 ** 2)
+    #             else:
+    #                 distillation_loss = F.kl_div(
+    #                     F.log_softmax(student_output / self.args.sflas.temperature, dim=1),
+    #                     F.softmax(teacher_output / self.args.sflas.temperature, dim=1),
+    #                     reduction='batchmean'
+    #                 ) * (self.args.sflas.temperature ** 2)
+    #
+    #             loss += distillation_loss
+    #             alignment_optimizer.zero_grad()
+    #             loss.backward()
+    #
+    #             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10.0)
+    #             # self.adaptive_clip_gradients(self.model)
+    #             alignment_optimizer.step()
+    #     self.prev_model.cpu()
+
+    def align_federated_parameters(self, package): #### 双教师蒸馏
+        # 设置模型状态
+        self.prev_model.eval()  # 教师 1
         self.prev_model.to(self.device)
-        self.model.train()  # 将学生模型设置为训练模式
+
+        self.global_model = deepcopy(self.model)  # 教师 2：初始与 self.model 相同
+        self.global_model.eval()
+        self.global_model.to(self.device)
+
+        self.model.train()  # 学生模型
         self.model.to(self.device)
         self.dataset.train()
 
+        # ------- 1. 构建原型 -------
         self.prototypes = [[] for _ in range(NUM_CLASSES[self.args.dataset.name])]
 
-        # 计算教师模型的原型（特征中心）
         with torch.no_grad():
             for x, y in self.trainloader:
                 x, y = x.to(self.device), y.to(self.device)
-                features = self.prev_model.get_last_features(x)  # 获取教师模型特征
+                features = self.prev_model.get_last_features(x)
                 for label, feat in zip(y, features):
                     self.prototypes[label].append(feat)
 
-        # 计算每个类的原型（特征均值）
         mean_prototypes = [
-            torch.stack(prototype).mean(dim=0) if prototype else None
-            for prototype in self.prototypes
+            torch.stack(p).mean(dim=0) if p else None
+            for p in self.prototypes
         ]
 
+        # ------- 2. 初始化优化器 -------
         alignment_optimizer = torch.optim.SGD(
-            # self.model.base.parameters(),  ## 只更新body
-            list(self.model.base.parameters()) + list(self.model.classifier.parameters()),   ## body, classifier一起更新
+            list(self.model.base.parameters()) + list(self.model.classifier.parameters()),
             lr=self.args.sflas.alignment_lr
         )
 
+        # ------- 3. 联合优化 -------
         for _ in range(self.args.sflas.alignment_epoch):
             for x, y in self.trainloader:
                 x, y = x.to(self.device), y.to(self.device)
-                features = self.model.get_last_features(x, detach=False)  # 获取学生模型的特征
+                features = self.model.get_last_features(x, detach=False)
 
-                loss = 0
-                # 对齐特征部分（使用均值原型对齐）
+                # 原型对齐 loss
+                proto_loss = 0
                 for label in y.unique().tolist():
                     if mean_prototypes[label] is not None:
-                        # 计算学生模型特征与教师模型原型之间的均方误差损失
-                        loss += F.mse_loss(
+                        proto_loss += F.mse_loss(
                             features[y == label].mean(dim=0), mean_prototypes[label]
                         )
 
-                # 知识蒸馏部分（只蒸馏head部分）
+                # 教师 logits（global model + prev model）
                 with torch.no_grad():
-                    teacher_features = self.prev_model.get_last_features(x, detach=True)  # 获取教师模型的特征
-                    teacher_output = self.prev_model.get_classifier_output(teacher_features)  # 获取教师分类器的输出
-                student_output = self.model.get_classifier_output(features)  # 获取学生分类器的输出
+                    teacher_feat_global = self.global_model.get_last_features(x, detach=True)
+                    teacher_logits_global = self.global_model.classifier(teacher_feat_global)
 
-                # 使用KL散度来计算蒸馏损失
-                distillation_loss = F.kl_div(
-                    F.log_softmax(student_output / self.args.sflas.temperature, dim=1),
-                    F.softmax(teacher_output / self.args.sflas.temperature, dim=1),
+                    teacher_feat_prev = self.prev_model.get_last_features(x, detach=True)
+                    teacher_logits_prev = self.prev_model.classifier(teacher_feat_prev)
+
+                student_logits = self.model.classifier(features)
+
+                T = self.args.sflas.temperature
+                lambda_g = self.args.sflas.lambda_global  # 权重：global teacher
+
+                kd_loss_global = F.kl_div(
+                    F.log_softmax(student_logits / T + 1e-10, dim=1),
+                    F.softmax(teacher_logits_global / T + 1e-10, dim=1),
                     reduction='batchmean'
-                ) * (self.args.sflas.temperature ** 2)
+                )
 
-                # 将对齐损失与蒸馏损失相加
-                loss += distillation_loss
+                kd_loss_prev = F.kl_div(
+                    F.log_softmax(student_logits / T + 1e-10, dim=1),
+                    F.softmax(teacher_logits_prev / T + 1e-10, dim=1),
+                    reduction='batchmean'
+                )
 
-                # 清零梯度并反向传播
+                distill_loss = (lambda_g * kd_loss_global + (1 - lambda_g) * kd_loss_prev) * (T ** 2)
+
+                # 总 loss
+                loss = proto_loss + distill_loss
+
                 alignment_optimizer.zero_grad()
                 loss.backward()
-
-                # 梯度裁剪（针对CIFAR-100的情况）
-                if self.args.dataset.name == 'cifar100':
-                    torch.nn.utils.clip_grad_norm_(self.model.base.parameters(), max_norm=10.0)
-
-                # 更新模型参数
+                if self.args.dataset.name == "cifar10" or self.args.dataset.name == "cifar100" or self.args.dataset.name == "svhn":
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10.0)
                 alignment_optimizer.step()
 
-        # 将教师模型移回CPU
         self.prev_model.cpu()
+        self.global_model.cpu()
 
     def get_fim_trace_sum(self) -> float:
         self.model.eval()
@@ -204,9 +279,6 @@ class SFLASClient(FedAvgClient):
 
         for _ in range(self.local_epoch):
             for x, y in self.trainloader:
-                if len(x) <= 1:
-                    continue
-
                 x, y = x.to(self.device), y.to(self.device)
                 logit = self.model(x)
                 features = self.model.get_last_features(x, detach=False)
@@ -260,34 +332,15 @@ class SFLASClient(FedAvgClient):
         loss = -mean_log_prob_pos.mean()
         return loss
 
-    # def compute_proto_contrastive_loss(self, features, labels, temperature=0.5):
-    #     """
-    #     features: [B, D]
-    #     labels: [B]
-    #     self.model.target_embedding.weight: [C, D]
-    #     """
-    #     features = F.normalize(features, dim=1)  # [B, D]
-    #     prototypes = F.normalize(self.model.target_embedding.weight, dim=1)  # [C, D]
-    #
-    #     logits = features @ prototypes.T  # [B, C], cosine similarity
-    #     logits /= temperature
-    #
-    #     loss = F.cross_entropy(logits, labels)
-    #     return loss
 
     def compute_proto_contrastive_loss(self, features, labels, temperature=0.5):
-        """
-        features: [B, D]
-        labels: [B]
-        self.model.target_embedding.weight: [C, D]
-        """
         features = F.normalize(features, dim=1)  # [B, D]
         prototypes = [
             torch.stack(prototype).mean(dim=0) if prototype else torch.zeros(features.size(1), device=self.device)
             for prototype in self.prototypes
         ]
         prototypes = F.normalize(torch.stack(prototypes), dim=1)
-        logits = features @ prototypes.T  # [B, C], cosine similarity
+        logits = features @ prototypes.T  # 相似度
         logits /= temperature
 
         loss = F.cross_entropy(logits, labels)

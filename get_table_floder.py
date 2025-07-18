@@ -19,6 +19,7 @@ for subfolder in os.listdir(log_dir):
     for filename in os.listdir(subfolder_path):
         if filename.endswith(".log"):
             log_name = filename.replace(".log", "")
+            log_name = log_name.split("_")[1]  # 提取最后一部分
             log_names.add(log_name)
 
             file_path = os.path.join(subfolder_path, filename)

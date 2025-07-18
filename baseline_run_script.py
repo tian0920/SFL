@@ -26,13 +26,13 @@ def run_command(command, log_file):
 
 def main():
     # 定义参数
-    # datasets_name = ['tiny_imagenet', ]
-    # datasets_name = ['cifar10', 'cifar100', 'cinic10', ]  # 'svhn', 'fmnist', 'mnist',
-    datasets_name = ['mnist', 'fmnist', 'svhn', ]
+    # datasets_name = ['cifar10', 'cifar100', 'fmnist', ]
+    # datasets_name = ['cifar10', 'cifar100', ]  # 'svhn', 'fmnist', 'mnist',
+    datasets_name = ['cinic10', ]
 
     # methods = ['fedpac', 'fedfed', 'fedproto', ]  #  'fedavg', 'local', 'fedproto', 'fedpac', 'fedfed',
     # methods = [ 'feddpa', 'fedala', 'fedah', 'metafed', 'fedpac', 'fedfed', 'fedproto', ]
-    methods = ['sflas']
+    methods = ['sflas',]
 
     # SeqFedEDT: 'floco', 'fedavg', 'local', 'fedper', 'apfl', 'lgfedavg', 'fedrep', 'pfedfda', 'fedrod', 'fedproto',
     # SeqFedRPC: 'fedavg', 'local', 'sfl', 'cfl', 'feddyn', 'fedfomo', 'fedper', 'fedrep', 'pfedsim', 'lgfedavg', 'flute',

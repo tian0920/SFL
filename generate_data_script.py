@@ -41,7 +41,7 @@ def main():
     # 在这里输入你的 cn, a, d 参数
     cn = 100
     a = 0.1
-    d = ['tiny_imagenet', ] # 'cifar10', 'cifar100', 'svhn', 'fmnist', 'medmnistA', 'medmnistC', 'mnist',
+    d = ['medmnistA', ] # 'cifar10', 'cifar100', 'svhn', 'fmnist', 'medmnistA', 'medmnistC', 'mnist',
     # d = ['cifar10', 'cifar100', 'cinic10', 'svhn', 'fmnist', 'mnist',]
 
     success = generate_data(cn, a, d)
