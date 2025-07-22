@@ -55,7 +55,7 @@ def build_command(method, dataset, ig_ratio, alpha_tmp, score=None):
             'main.py',
             f'method={method}',
             f'dataset.name={dataset}',
-            f'{method}.lambda_global={ig_ratio}',
+            f'{method}.headfinetune_epoch={ig_ratio}',
         ]
 
 
@@ -67,15 +67,15 @@ def build_log_filename(method, dataset, ig_ratio, score=None):
         return f"{method}+{score}_{dataset}_{ig_ratio}.log"
     else:
         # return f"psfl+fisher_{dataset}_{ig_ratio}.log"
-        return f"sflas_{dataset}_{ig_ratio}.log"
+        return f"fedas_{dataset}_epoch_{ig_ratio}.log"
 
 
 def main():
     # 定义参数
-    datasets_name = ['cifar10', 'cifar100', 'fmnist', 'cinic10'] # 'cifar10', 'cifar100', 'svhn', 'fmnist', 'medmnistC', 'mnist', 'emnist'
-    ig_values = [0.4, 0.5, 0.6, ]
-    # ig_values = [0.7, 0.8, 0.9]
-    methods = ['sflas',] #  'feddpa', 'psfl',
+    datasets_name = ['cifar100', ] # 'cifar10', 'cifar100', 'svhn', 'fmnist', 'medmnistC', 'mnist', 'emnist'
+    ig_values = [1, 2, 3, 4, 5] # 0.01,
+    # ig_values = [3]
+    methods = ['fedas',] #  'feddpa', 'psfl',
     alpha = [0.0]
     score_list = ['obp', 'diff']
 

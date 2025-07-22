@@ -3,7 +3,7 @@ import re
 from collections import defaultdict
 
 # 新的log根目录
-log_dir = "test_experiment/sflas"
+log_dir = "test_experiment"
 
 # 数据结构：文件夹名 → log文件名 → 数值
 data = defaultdict(dict)

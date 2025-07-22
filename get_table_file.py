@@ -3,7 +3,7 @@ import re
 from collections import defaultdict
 
 # 指定log文件夹路径
-log_dir = "D:\\SFL\\test_experiment\\baseline"
+log_dir = "test_experiment/tem_cifar10"  # /baseline/alpha=0.5
 
 # 初始化存储结构：方法 → 数据集 → 数值
 data = defaultdict(dict)
