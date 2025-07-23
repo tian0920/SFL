@@ -3,21 +3,19 @@ from typing import Any, Dict
 
 from omegaconf import DictConfig
 
-from src.client.fedas import FedASClient
+from src.client.fedpda import FedPDAClient
 from src.server.fedavg import FedAvgServer
 
 
-class FedASServer(FedAvgServer):
-    algorithm_name = "FedAS"
+class FedPDAServer(FedAvgServer):
+    algorithm_name = "FedPDA"
     all_model_params_personalized = False  # `True` indicates that clients have their own fullset of personalized model parameters.
     return_diff = False  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
-    client_cls = FedASClient
+    client_cls = FedPDAClient
 
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
-        parser.add_argument("--alignment_lr", type=float, default=0.01)
-        parser.add_argument("--alignment_epoch", type=int, default=1)
         return parser.parse_args(args_list)
 
     def __init__(self, args: DictConfig):

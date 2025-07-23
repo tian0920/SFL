@@ -17,7 +17,7 @@ matplotlib.rcParams['axes.linewidth'] = 1  # 线型粗细为 1
 matplotlib.rcParams['axes.grid'] = True  # 启用网格
 
 # 假设最外层的目录
-root_directory = 'experiment_logs/alpha=0.1/convergence'  # 请替换为实际的根目录路径
+root_directory = 'test_experiment/baseline/alpha=0.1/convergence'  # 请替换为实际的根目录路径
 
 # 准备绘图数据
 data = {}
@@ -58,9 +58,6 @@ for method in os.listdir(root_directory):
                             ma_before = df['accuracy_test_before'].rolling(window=15).mean()
                             ma_after = df['accuracy_test_after'].rolling(window=15).mean()
 
-                        if dataset_upper == 'EMNIST' and method == 'pfedfda':
-                            ma_after = ma_after - 2
-
                         # 将method转为小写，并存储数据
                         method_lower = method.lower()
                         if method_lower not in data[dataset_upper]:
@@ -74,62 +71,63 @@ for method in os.listdir(root_directory):
 datasets = sorted(data.keys())
 
 method_color_map = {
-    'apfl': 'saddlebrown',
-    'fedper': 'g',
-    'fedavg': 'gray',
-    'fedrep': 'c',
-    'fedrod': 'lightsteelblue',
-    'floco': 'y',
-    'lgfedavg': 'brown',
-    'local': 'orange',
-    'pfedfda': 'purple',
-    'psfl+diff': 'b',
-    'psfl+fisher': 'm',
-    'psfl+obp': 'r',
-    'sfl': 'rosybrown',
-    'fedproto': 'teal',
+    'fedavg': 'saddlebrown',
+    'local': 'g',
+    'fedah': 'gray',
+    'fedala': 'c',
+    'fedas': 'lightsteelblue',
+    'feddpa': 'y',
+    'fedfed': 'brown',
+    'fedpac': 'orange',
+    'fedproto': 'purple',
+    'fedrod': 'b',
+    'ours': 'r',
+    # 'psfl+obp': 'r',
+    # 'sfl': 'rosybrown',
+    # 'fedproto': 'teal',
 }
 
 linewidth = 1
 
 # 创建子图，假设最多有8个数据集
-fig, axes = plt.subplots(2, 4, figsize=(20, 8))
+fig, axes = plt.subplots(1, 4, figsize=(28, 6))
 
 # 迭代每个数据集
 for i, dataset in enumerate(datasets):
-    ax = axes[i // 4, i % 4]  # 计算子图的位置
+    # ax = axes[i // 4, i % 4]  # 计算子图的位置,适合多行
+    ax = axes[i]
 
     # 绘制每个方法的test_before
     for method, values in data[dataset].items():
         color = method_color_map.get(method, '#000000')  # 如果方法没有定义颜色，默认使用黑色
-        if method == 'apfl':
-            ax.plot(values['epoch'], values['test_before'], label='APFL', linewidth=linewidth, color=color)
-        if method == 'fedper':
-            ax.plot(values['epoch'], values['test_before'], label='FedPer', linewidth=linewidth, color=color)
         if method == 'fedavg':
             ax.plot(values['epoch'], values['test_before'], label='FedAvg', linewidth=linewidth, color=color)
+        if method == 'local':
+            ax.plot(values['epoch'], values['test_before'], label='Local-Only', linewidth=linewidth, color=color)
+        if method == 'fedah':
+            ax.plot(values['epoch'], values['test_before'], label='FedAH', linewidth=linewidth, color=color)
+        if method == 'fedala':
+            ax.plot(values['epoch'], values['test_before'], label='FedALA', linewidth=linewidth, color=color)
+        if method == 'fedas':
+            ax.plot(values['epoch'], values['test_before'], label='FedAS', linewidth=linewidth, color=color)
+        if method == 'fedrod':
+            ax.plot(values['epoch'], values['test_before'], label='FedRoD', linewidth=linewidth, color=color)
+        if method == 'feddpa':
+            ax.plot(values['epoch'], values['test_before'], label='FedDPA', linewidth=linewidth, color=color)
+        if method == 'fedfed':
+            ax.plot(values['epoch'], values['test_before'], label='FedFed', linewidth=linewidth, color=color)
+        if method == 'fedpac':
+            ax.plot(values['epoch'], values['test_before'], label='FedPAC', linewidth=linewidth, color=color)
         if method == 'fedproto':
             ax.plot(values['epoch'], values['test_before'], label='FedProto', linewidth=linewidth, color=color)
-        if method == 'fedrep':
-            ax.plot(values['epoch'], values['test_before'], label='FedRep', linewidth=linewidth, color=color)
-        # if method == 'fedrod':
-        #     ax.plot(values['epoch'], values['test_before'], label='FedRod', linewidth=linewidth, color=color)
-        if method == 'floco':
-            ax.plot(values['epoch'], values['test_before'], label='Floco', linewidth=linewidth, color=color)
-        if method == 'lgfedavg':
-            ax.plot(values['epoch'], values['test_before'], label='LG-FedAvg', linewidth=linewidth, color=color)
-        if method == 'local':
-            ax.plot(values['epoch'], values['test_before'], label='Local', linewidth=linewidth, color=color)
-        if method == 'pfedfda':
-            ax.plot(values['epoch'], values['test_after'], label='pFedFDA', linewidth=linewidth, color=color)
-        if method == 'psfl+diff':
-            ax.plot(values['epoch'], values['test_before'], label='S.FedEDT+Grad.', linewidth=linewidth + 0.6, color=color)
-        if method == 'psfl+fisher':
-            ax.plot(values['epoch'], values['test_before'], label='S.FedEDT+Fisher', linewidth=linewidth + 0.6, color=color)
-        if method == 'psfl+obp':
-            ax.plot(values['epoch'], values['test_before'], label='S.FedEDT+OBD', linewidth=linewidth + 0.6, color=color)
-        if method == 'sfl':
-            ax.plot(values['epoch'], values['test_before'], label='SFL', linewidth=linewidth, color=color)
+        if method == 'ours':
+            ax.plot(values['epoch'], values['test_before'], label='Ours', linewidth=linewidth + 0.6, color=color)
+        # if method == 'psfl+fisher':
+        #     ax.plot(values['epoch'], values['test_before'], label='S.FedEDT+Fisher', linewidth=linewidth + 0.6, color=color)
+        # if method == 'psfl+obp':
+        #     ax.plot(values['epoch'], values['test_before'], label='S.FedEDT+OBD', linewidth=linewidth + 0.6, color=color)
+        # if method == 'sfl':
+        #     ax.plot(values['epoch'], values['test_before'], label='SFL', linewidth=linewidth, color=color)
 
     # 设置y轴从40开始（仅针对指定的数据集）
     if dataset in ['EMNIST', 'FMNIST', ]:

@@ -1,9 +1,10 @@
 import os
 import re
+import numpy as np
 from collections import defaultdict
 
 # 指定log文件夹路径
-log_dir = "test_experiment/tem_cifar10"  # /baseline/alpha=0.5
+log_dir = "test_experiment/epoch_cifar100"  # /baseline/alpha=0.5
 
 # 初始化存储结构：方法 → 数据集 → 数值
 data = defaultdict(dict)
@@ -34,14 +35,30 @@ for filename in os.listdir(log_dir):
 
 # 构建Markdown表格
 datasets = sorted(datasets)
-header = "| Method | " + " | ".join(datasets) + " |"
-separator = "|--------|" + "|".join(["--------"] * len(datasets)) + "|"
+header = "| Method | " + " | ".join(datasets) + " | Mean | Std |"
+separator = "|--------|" + "|".join(["--------"] * len(datasets)) + "|--------|--------|"
 
 rows = [header, separator]
 for method in sorted(data.keys()):
     row = [method]
+    values = []
     for dataset in datasets:
-        row.append(data[method].get(dataset, "N/A"))
+        val_str = data[method].get(dataset, "N/A")
+        row.append(val_str)
+        try:
+            val = float(val_str)
+            values.append(val)
+        except:
+            continue  # Skip "N/A"
+    # 计算均值和标准差
+    if values:
+        mean = np.mean(values)
+        std = np.std(values)
+        row.append(f"{mean:.2f}")
+        row.append(f"{std:.2f}")
+    else:
+        row.append("N/A")
+        row.append("N/A")
     rows.append("| " + " | ".join(row) + " |")
 
 # 输出Markdown表格

@@ -73,8 +73,10 @@ def build_log_filename(method, dataset, ig_ratio, score=None):
 def main():
     # 定义参数
     datasets_name = ['cifar100', ] # 'cifar10', 'cifar100', 'svhn', 'fmnist', 'medmnistC', 'mnist', 'emnist'
-    ig_values = [1, 2, 3, 4, 5] # 0.01,
-    # ig_values = [3]
+    ig_values = [1, 2, 3, 4, 5,] #
+    # tem: 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1,
+    # pro: 0.1, 0.3, 0.5, 0.7, 0.9, 1, 2, 3, 4, 5,
+    # epoch: 1, 2, 3, 4, 5,
     methods = ['fedas',] #  'feddpa', 'psfl',
     alpha = [0.0]
     score_list = ['obp', 'diff']

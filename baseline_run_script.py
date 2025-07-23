@@ -26,13 +26,13 @@ def run_command(command, log_file):
 
 def main():
     # 定义参数
-    datasets_name = ['cifar100', 'fmnist', 'cinic10', ]
+    # datasets_name = ['cifar10', 'cifar100', 'fmnist', 'cinic10', ]
     # datasets_name = ['cifar100', 'fmnist', 'cinic10', ]  # 'svhn', 'fmnist', 'mnist',
-    # datasets_name = ['cifar10', ]
+    datasets_name = ['cifar100', ]
 
     # methods = ['fedpac', 'fedfed', 'fedproto', 'fedavg', 'local',]  #  'fedproto', 'fedpac', 'fedfed',
     # methods = ['feddpa', 'fedala', 'fedah', 'fedrod', ]
-    methods = ['fedas',]
+    methods = ['fedpda',]
 
     # SeqFedEDT: 'floco', 'fedavg', 'local', 'fedper', 'apfl', 'lgfedavg', 'fedrep', 'pfedfda', 'fedrod', 'fedproto',
     # SeqFedRPC: 'fedavg', 'local', 'sfl', 'cfl', 'feddyn', 'fedfomo', 'fedper', 'fedrep', 'pfedsim', 'lgfedavg', 'flute',
