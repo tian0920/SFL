@@ -8,34 +8,14 @@ import torch.nn.functional as F
 from src.client.fedavg import FedAvgClient
 from src.utils.constants import NUM_CLASSES
 from src.utils.models import DecoupledModel
+from src.utils.metrics import Metrics
+from src.utils.functional import evaluate_model, get_optimal_cuda_device
 
 
 class FedPDAClient(FedAvgClient):
     def __init__(self, **commons):
         super().__init__(**commons)
         self.prev_model: DecoupledModel = deepcopy(self.model)
-
-    def get_fim_trace_sum(self) -> float:
-        self.model.eval()
-        self.dataset.eval()
-
-        fim_trace_sum = 0
-
-        for x, y in self.trainloader:
-            x, y = x.to(self.device), y.to(self.device)
-            logits = self.model(x)
-            loss = (
-                -F.log_softmax(logits, dim=1).gather(dim=1, index=y.unsqueeze(1)).mean()
-            )
-
-            self.model.zero_grad()
-            loss.backward()
-
-            for param in self.model.parameters():
-                if param.grad is not None:
-                    fim_trace_sum += (param.grad.data**2).sum().item()
-
-        return fim_trace_sum
 
     def compute_total_param_score(self):
         device = next(self.model.parameters()).device
@@ -52,8 +32,7 @@ class FedPDAClient(FedAvgClient):
     def package(self):
         client_package = super().package()
         # fedpda uses the sum of FIM traces as the weight
-        # client_package["weight"] = self.get_fim_trace_sum()
-        # client_package["weight"] = self.compute_total_param_score()
+        client_package["weight"] = self.compute_total_param_score()
         client_package["prev_model_state"] = deepcopy(self.model.state_dict())
         return client_package
 
@@ -68,48 +47,65 @@ class FedPDAClient(FedAvgClient):
         else:
             # fedpda evaluates clients' personalized models
             self.model.load_state_dict(self.prev_model.state_dict())
+            # self.align_federated_parameters()
 
-    # def align_federated_parameters(self):  ###### 原fedpda代码
-    #     self.prev_model.eval()
-    #     self.prev_model.to(self.device)
-    #     self.model.train()
-    #     self.dataset.train()
-    #
-    #     self.prototypes = [[] for _ in range(NUM_CLASSES[self.args.dataset.name])]
-    #
-    #     with torch.no_grad():
-    #         for x, y in self.trainloader:
-    #             x, y = x.to(self.device), y.to(self.device)
-    #             features = self.prev_model.get_last_features(x)
-    #
-    #             for y, feat in zip(y, features):
-    #                 self.prototypes[y].append(feat)
-    #
-    #     mean_prototypes = [
-    #         torch.stack(prototype).mean(dim=0) if prototype else None
-    #         for prototype in self.prototypes
-    #     ]
-    #
-    #     alignment_optimizer = torch.optim.SGD(
-    #         self.model.base.parameters(), lr=self.args.fedpda.alignment_lr
-    #     )
-    #
-    #     for _ in range(self.args.fedpda.alignment_epoch):
-    #         for x, y in self.trainloader:
-    #             x, y = x.to(self.device), y.to(self.device)
-    #             features = self.model.get_last_features(x, detach=False)
-    #             loss = 0
-    #             for label in y.unique().tolist():
-    #                 if mean_prototypes[label] is not None:
-    #                     loss += F.mse_loss(
-    #                         features[y == label].mean(dim=0), mean_prototypes[label]
-    #                     )
-    #
-    #             alignment_optimizer.zero_grad()
-    #             loss.backward()
-    #             alignment_optimizer.step()
-    #
-    #     self.prev_model.cpu()
+    def evaluate(self, model: torch.nn.Module = None) -> dict[str, Metrics]:
+        """Evaluating client model.
+
+        Args:
+            model: Used model. Defaults to None, which will fallback to `self.model`.
+
+        Returns:
+            A evalution results dict: {
+                `train`: results on client training set.
+                `val`: results on client validation set.
+                `test`: results on client test set.
+            }
+        """
+        target_model = self.prev_model if model is None else model
+        target_model.eval()
+        self.dataset.eval()
+        train_metrics = Metrics()
+        val_metrics = Metrics()
+        test_metrics = Metrics()
+        criterion = torch.nn.CrossEntropyLoss(reduction="sum")
+
+        if (
+            len(self.testset) > 0
+            and (self.testing or self.args.common.client_side_evaluation)
+            and self.args.common.test.client.test
+        ):
+            test_metrics = evaluate_model(
+                model=target_model,
+                dataloader=self.testloader,
+                criterion=criterion,
+                device=self.device,
+            )
+
+        if (
+            len(self.valset) > 0
+            and (self.testing or self.args.common.client_side_evaluation)
+            and self.args.common.test.client.val
+        ):
+            val_metrics = evaluate_model(
+                model=target_model,
+                dataloader=self.valloader,
+                criterion=criterion,
+                device=self.device,
+            )
+
+        if (
+            len(self.trainset) > 0
+            and (self.testing or self.args.common.client_side_evaluation)
+            and self.args.common.test.client.train
+        ):
+            train_metrics = evaluate_model(
+                model=target_model,
+                dataloader=self.trainloader,
+                criterion=criterion,
+                device=self.device,
+            )
+        return {"train": train_metrics, "val": val_metrics, "test": test_metrics}
 
     def align_federated_parameters(self):
         self.prev_model.eval().to(self.device)
@@ -133,37 +129,41 @@ class FedPDAClient(FedAvgClient):
                 for label, feat in zip(y, global_features):
                     self.global_prototypes[label].append(feat)
 
-        mean_prototypes = [
+        self.mean_prototypes = [
             torch.stack(p).mean(0) if p else torch.zeros_like(features[0])
             for p in self.prototypes
         ]
-        mean_global_prototypes = [
+        self.mean_global_prototypes = [
             torch.stack(p).mean(0) if p else torch.zeros_like(global_features[0])
             for p in self.global_prototypes
         ]
 
-        # ### 第一阶段：对齐 base 层（不变）
+        ### 第一阶段：对齐 base 层（不变）
         base_optimizer = torch.optim.SGD(self.model.base.parameters(), lr=self.args.fedpda.alignment_lr)
         for _ in range(self.args.fedpda.alignment_epoch):
             for x, y in self.trainloader:
                 x, y = x.to(self.device), y.to(self.device)
                 feats = self.model.get_last_features(x, detach=False)
-
+                FEATURE_DIM = feats[0].shape[0]
                 loss = sum(
-                    F.mse_loss(feats[y == label].mean(0), mean_prototypes[label])
-                    for label in y.unique().tolist() if mean_prototypes[label] is not None
+                    F.mse_loss(feats[y == label].mean(0), self.mean_prototypes[label])
+                    for label in y.unique().tolist() if self.mean_prototypes[label] is not None
                 )
+                contrastive_loss = self.compute_proto_contrastive_loss(feats, y, temperature=self.args.fedpda.com_temperature)
+                total_loss = loss + self.args.fedpda.lambda_contrastive * contrastive_loss
 
                 base_optimizer.zero_grad()
-                loss.backward()
+                total_loss.backward()
                 if self.args.dataset.name in ["cifar10", "cifar100", "cinic10"]:
                     torch.nn.utils.clip_grad_norm_(self.model.base.parameters(), 10.0)
                 base_optimizer.step()
 
-        #### 第二阶段：联合训练 base + classifier + generator
+        ### 第二阶段：联合训练 base + classifier + generator
         self.model.train()  # 再次确保全模型为训练态
 
         generator = LinearGenerator().to(self.device)
+        # generator = NonlinearGenerator(feature_dim=FEATURE_DIM).to(self.device)
+
         generator.train()
 
         all_params = list(self.model.base.parameters()) + \
@@ -178,10 +178,10 @@ class FedPDAClient(FedAvgClient):
 
                 with torch.no_grad():
                     t1 = self.global_model.get_last_features(x)
-                    t2 = torch.stack([mean_prototypes[label] for label in y])
+                    t2 = torch.stack([self.mean_prototypes[label] for label in y])
 
                 s1 = self.model.get_last_features(x)
-                s2 = torch.stack([mean_global_prototypes[label] for label in y])
+                s2 = torch.stack([self.mean_global_prototypes[label] for label in y])
 
                 combined = generator(t1, t2, s1, s2)
                 output = self.model.classifier(combined)
@@ -196,75 +196,14 @@ class FedPDAClient(FedAvgClient):
 
         self.prev_model.cpu()
 
-    def fit(self):
-        self.model.train()
-        self.dataset.train()
-        self.lambda_contrastive = self.args.fedpda.lambda_contrastive
-
-        # for _ in range(self.local_epoch - self.args.fedpda.headfinetune_epoch - self.args.fedpda.alignment_epoch):
-        for _ in range(self.local_epoch):
-            for x, y in self.trainloader:
-                x, y = x.to(self.device), y.to(self.device)
-                logit = self.model(x)
-                features = self.model.get_last_features(x, detach=False)
-                cls_loss = self.criterion(logit, y)
-                contrastive_loss = self.compute_proto_contrastive_loss(features, y, temperature=self.args.fedpda.com_temperature)
-                # contrastive_loss = self.margin_proto_contrastive_loss(features, y, temperature=self.args.fedpda.com_temperature)
-                total_loss = cls_loss + self.lambda_contrastive * contrastive_loss
-
-                self.optimizer.zero_grad()
-                total_loss.backward()
-                # cls_loss.backward()
-                self.optimizer.step()
-
-            if self.lr_scheduler is not None:
-                self.lr_scheduler.step()
-
     def compute_proto_contrastive_loss(self, features, labels, temperature=0.5):
         features = F.normalize(features, dim=1)  # [B, D]
-        prototypes = [
-            torch.stack(prototype).mean(dim=0) if prototype else torch.zeros(features.size(1), device=self.device)
-            for prototype in self.prototypes
-        ]
-        prototypes = F.normalize(torch.stack(prototypes), dim=1)
+        prototypes = F.normalize(torch.stack(self.mean_prototypes), dim=1)
         logits = features @ prototypes.T  # 相似度
         logits /= temperature
 
         loss = F.cross_entropy(logits, labels)
         return loss
-
-    def margin_proto_contrastive_loss(self, features, labels, temperature=0.5):
-        """
-        features: [B, D] - batch of feature vectors
-        labels:   [B]    - class indices for each feature
-        prototypes: [C, D] - class prototypes
-        temperature: scalar temperature for softmax
-        """
-        # Step 1: Normalize
-        features = F.normalize(features, dim=1)  # [B, D]
-        mean_prototypes = [
-            torch.stack(proto).mean(dim=0) if proto else torch.zeros(features.size(1), device=self.device)
-            for proto in self.prototypes
-        ]
-        prototypes = F.normalize(torch.stack(mean_prototypes), dim=1)  # [C, D]
-
-        # Step 2: Compute similarity matrix [B, C]
-        logits = features @ prototypes.T  # cosine similarity
-        logits /= temperature  # scale by temperature
-
-        B, C = logits.shape
-        device = logits.device
-
-        # Step 3: Mask out the positive class from denominator
-        one_hot = F.one_hot(labels, num_classes=C).bool()  # [B, C]
-        neg_logits = logits.masked_fill(one_hot, float('-inf'))  # set pos class to -inf
-
-        # Step 4: Compute numerator and denominator
-        pos_logit = torch.gather(logits, 1, labels.unsqueeze(1)).squeeze(1)  # [B]
-        neg_denom = torch.logsumexp(neg_logits, dim=1)  # [B]
-
-        loss = -pos_logit + neg_denom
-        return loss.mean()
 
 class LinearGenerator(nn.Module):
     def __init__(self):
@@ -274,3 +213,16 @@ class LinearGenerator(nn.Module):
     def forward(self, t1, t2, s1, s2):
         w = F.softmax(self.weights, dim=0)  # 保证和为1
         return w[0]*t1 + w[1]*t2 + w[2]*s1 + w[3]*s2
+
+class NonlinearGenerator(nn.Module):
+    def __init__(self, feature_dim=256, hidden_dim=512):
+        super().__init__()
+        self.mlp = nn.Sequential(
+            nn.Linear(feature_dim * 4, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, feature_dim)
+        )
+
+    def forward(self, t1, t2, s1, s2):
+        x = torch.cat([t1, t2, s1, s2], dim=1)  # [B, 4D]
+        return self.mlp(x)
