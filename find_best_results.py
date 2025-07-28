@@ -3,7 +3,7 @@ import re
 from collections import defaultdict
 
 # 设置日志目录
-log_dir = "infocom_experiment/motivation/down and upload"  # ← 修改为你的文件夹路径
+log_dir = "test_experiment/FedOBP"  # ← 修改为你的文件夹路径
 # log_dir = "experiment_logs/alpha=1.0/psfl+obp"  # ← 修改为你的文件夹路径
 
 # 存储结构：dataset → [(value, parameter)]
@@ -13,7 +13,8 @@ dataset_values = defaultdict(list)
 for filename in os.listdir(log_dir):
     if filename.endswith(".log"):
         # 提取数据集名和参数值
-        match_name = re.match(r"pspfl\+diff_(\w+)_il_([\d.]+)_ig_([\d.]+)\.log", filename)
+        # match_name = re.match(r"pspfl\+diff_(\w+)_il_([\d.]+)_ig_([\d.]+)\.log", filename)
+        match_name = re.match(r"fedobp_(\w+)_res18_([\d.]+)\.log", filename)
         if match_name:
             dataset = match_name.group(1)
             param = match_name.group(2)

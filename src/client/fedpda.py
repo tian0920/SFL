@@ -8,8 +8,6 @@ import torch.nn.functional as F
 from src.client.fedavg import FedAvgClient
 from src.utils.constants import NUM_CLASSES
 from src.utils.models import DecoupledModel
-from src.utils.metrics import Metrics
-from src.utils.functional import evaluate_model, get_optimal_cuda_device
 
 
 class FedPDAClient(FedAvgClient):
@@ -47,65 +45,6 @@ class FedPDAClient(FedAvgClient):
         else:
             # fedpda evaluates clients' personalized models
             self.model.load_state_dict(self.prev_model.state_dict())
-            # self.align_federated_parameters()
-
-    def evaluate(self, model: torch.nn.Module = None) -> dict[str, Metrics]:
-        """Evaluating client model.
-
-        Args:
-            model: Used model. Defaults to None, which will fallback to `self.model`.
-
-        Returns:
-            A evalution results dict: {
-                `train`: results on client training set.
-                `val`: results on client validation set.
-                `test`: results on client test set.
-            }
-        """
-        target_model = self.prev_model if model is None else model
-        target_model.eval()
-        self.dataset.eval()
-        train_metrics = Metrics()
-        val_metrics = Metrics()
-        test_metrics = Metrics()
-        criterion = torch.nn.CrossEntropyLoss(reduction="sum")
-
-        if (
-            len(self.testset) > 0
-            and (self.testing or self.args.common.client_side_evaluation)
-            and self.args.common.test.client.test
-        ):
-            test_metrics = evaluate_model(
-                model=target_model,
-                dataloader=self.testloader,
-                criterion=criterion,
-                device=self.device,
-            )
-
-        if (
-            len(self.valset) > 0
-            and (self.testing or self.args.common.client_side_evaluation)
-            and self.args.common.test.client.val
-        ):
-            val_metrics = evaluate_model(
-                model=target_model,
-                dataloader=self.valloader,
-                criterion=criterion,
-                device=self.device,
-            )
-
-        if (
-            len(self.trainset) > 0
-            and (self.testing or self.args.common.client_side_evaluation)
-            and self.args.common.test.client.train
-        ):
-            train_metrics = evaluate_model(
-                model=target_model,
-                dataloader=self.trainloader,
-                criterion=criterion,
-                device=self.device,
-            )
-        return {"train": train_metrics, "val": val_metrics, "test": test_metrics}
 
     def align_federated_parameters(self):
         self.prev_model.eval().to(self.device)
@@ -154,15 +93,14 @@ class FedPDAClient(FedAvgClient):
 
                 base_optimizer.zero_grad()
                 total_loss.backward()
-                if self.args.dataset.name in ["cifar10", "cifar100", "cinic10"]:
-                    torch.nn.utils.clip_grad_norm_(self.model.base.parameters(), 10.0)
+                torch.nn.utils.clip_grad_norm_(self.model.base.parameters(), 10.0)
                 base_optimizer.step()
 
         ### 第二阶段：联合训练 base + classifier + generator
         self.model.train()  # 再次确保全模型为训练态
 
-        generator = LinearGenerator().to(self.device)
-        # generator = NonlinearGenerator(feature_dim=FEATURE_DIM).to(self.device)
+        # generator = LinearGenerator().to(self.device)
+        generator = NonlinearGenerator(feature_dim=FEATURE_DIM).to(self.device)
 
         generator.train()
 
@@ -190,8 +128,7 @@ class FedPDAClient(FedAvgClient):
 
                 joint_optimizer.zero_grad()
                 loss.backward()
-                if self.args.dataset.name in ["cifar10", "cifar100", "cinic10"]:
-                    torch.nn.utils.clip_grad_norm_(all_params, 10.0)
+                torch.nn.utils.clip_grad_norm_(all_params, 10.0)
                 joint_optimizer.step()
 
         self.prev_model.cpu()

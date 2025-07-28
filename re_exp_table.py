@@ -48,13 +48,13 @@ def generate_markdown_table(statistics, methods, target_datasets):
     return header + separator + body
 
 def main():
-    folder_path = Path("C:/Users/win11/Desktop/FedOBP (NIPS)/alpha=0.5")
+    folder_path = Path("D://SFL//test_experiment//baseline//alpha=0.1")
     files = list(folder_path.glob("*.xlsx"))
 
-    methods = ['local', 'fedavg', 'fedper', 'apfl', 'lgfedavg', 'fedrep', 'pfedfda', 'flute', 'feddpa', 'floco', 'fedala', 'fedobp']
+    methods = ['fedavg', 'local', 'fedah', 'fedala', 'fedas', 'feddpa', 'fedfed', 'fedpac', 'fedproto', 'fedrod']
 
-    target_datasets = ['mnist', 'fmnist', 'medmnista', 'medmnistc',]  # 👈 可以修改为任意多个数据集
-    # target_datasets = ['cifar10', 'cifar100', 'emnist', 'svhn']  # 👈 可以修改为任意多个数据集
+    # target_datasets = ['mnist', 'fmnist', 'medmnista', 'medmnistc',]  # 👈 可以修改为任意多个数据集
+    target_datasets = ['cifar10', 'cifar100', 'cinic10', 'fmnist', ]  # 👈 可以修改为任意多个数据集
 
 
     data = read_all_data(files, methods, target_datasets)

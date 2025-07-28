@@ -50,13 +50,17 @@ for method in os.listdir(root_directory):
                         if dataset_upper not in data:
                             data[dataset_upper] = {}
 
-                        if dataset_upper == 'MEDMNISTA' or dataset_upper == 'MEDMNISTC':
+                        if dataset_upper == 'FMNIST' or dataset_upper == 'CINIC10':
                             # Calculate the moving average (MA), window size of 3
-                            ma_before = df['accuracy_test_before'].rolling(window=70).mean()
-                            ma_after = df['accuracy_test_after'].rolling(window=70).mean()
+                            ma_before = df['accuracy_test_before'].rolling(window=5).mean()
+                            ma_after = df['accuracy_test_after'].rolling(window=5).mean()
+                        elif dataset_upper == 'CIFAR10':
+                            # Calculate the moving average (MA), window size of 3
+                            ma_before = df['accuracy_test_before'].rolling(window=5).mean()
+                            ma_after = df['accuracy_test_after'].rolling(window=5).mean()
                         else:
-                            ma_before = df['accuracy_test_before'].rolling(window=15).mean()
-                            ma_after = df['accuracy_test_after'].rolling(window=15).mean()
+                            ma_before = df['accuracy_test_before'].rolling(window=5).mean()
+                            ma_after = df['accuracy_test_after'].rolling(window=5).mean()
 
                         # 将method转为小写，并存储数据
                         method_lower = method.lower()
@@ -87,70 +91,72 @@ method_color_map = {
     # 'fedproto': 'teal',
 }
 
-linewidth = 1
+linewidth = 1.5
 
 # 创建子图，假设最多有8个数据集
-fig, axes = plt.subplots(1, 4, figsize=(28, 6))
+# fig, axes = plt.subplots(1, 1, figsize=(4, 5))
 
 # 迭代每个数据集
 for i, dataset in enumerate(datasets):
     # ax = axes[i // 4, i % 4]  # 计算子图的位置,适合多行
-    ax = axes[i]
+    if dataset == 'CIFAR100':
+        fig, ax = plt.subplots(1, 1, figsize=(8, 5))
 
-    # 绘制每个方法的test_before
-    for method, values in data[dataset].items():
-        color = method_color_map.get(method, '#000000')  # 如果方法没有定义颜色，默认使用黑色
-        if method == 'fedavg':
-            ax.plot(values['epoch'], values['test_before'], label='FedAvg', linewidth=linewidth, color=color)
-        if method == 'local':
-            ax.plot(values['epoch'], values['test_before'], label='Local-Only', linewidth=linewidth, color=color)
-        if method == 'fedah':
-            ax.plot(values['epoch'], values['test_before'], label='FedAH', linewidth=linewidth, color=color)
-        if method == 'fedala':
-            ax.plot(values['epoch'], values['test_before'], label='FedALA', linewidth=linewidth, color=color)
-        if method == 'fedas':
-            ax.plot(values['epoch'], values['test_before'], label='FedAS', linewidth=linewidth, color=color)
-        if method == 'fedrod':
-            ax.plot(values['epoch'], values['test_before'], label='FedRoD', linewidth=linewidth, color=color)
-        if method == 'feddpa':
-            ax.plot(values['epoch'], values['test_before'], label='FedDPA', linewidth=linewidth, color=color)
-        if method == 'fedfed':
-            ax.plot(values['epoch'], values['test_before'], label='FedFed', linewidth=linewidth, color=color)
-        if method == 'fedpac':
-            ax.plot(values['epoch'], values['test_before'], label='FedPAC', linewidth=linewidth, color=color)
-        if method == 'fedproto':
-            ax.plot(values['epoch'], values['test_before'], label='FedProto', linewidth=linewidth, color=color)
-        if method == 'ours':
-            ax.plot(values['epoch'], values['test_before'], label='Ours', linewidth=linewidth + 0.6, color=color)
-        # if method == 'psfl+fisher':
-        #     ax.plot(values['epoch'], values['test_before'], label='S.FedEDT+Fisher', linewidth=linewidth + 0.6, color=color)
-        # if method == 'psfl+obp':
-        #     ax.plot(values['epoch'], values['test_before'], label='S.FedEDT+OBD', linewidth=linewidth + 0.6, color=color)
-        # if method == 'sfl':
-        #     ax.plot(values['epoch'], values['test_before'], label='SFL', linewidth=linewidth, color=color)
+        # 绘制每个方法的test_before
+        for method, values in data[dataset].items():
+            color = method_color_map.get(method, '#000000')  # 如果方法没有定义颜色，默认使用黑色
+            if method == 'fedavg':
+                ax.plot(values['epoch'], values['test_before'], label='FedAvg', linewidth=linewidth, color=color)
+            if method == 'local':
+                ax.plot(values['epoch'], values['test_before'], label='Local-Only', linewidth=linewidth, color=color)
+            if method == 'fedah':
+                ax.plot(values['epoch'], values['test_before'], label='FedAH', linewidth=linewidth, color=color)
+            if method == 'fedala':
+                ax.plot(values['epoch'], values['test_before'], label='FedALA', linewidth=linewidth, color=color)
+            if method == 'fedas':
+                ax.plot(values['epoch'], values['test_before'], label='FedAS', linewidth=linewidth, color=color)
+            if method == 'fedrod':
+                ax.plot(values['epoch'], values['test_before'], label='FedRoD', linewidth=linewidth, color=color)
+            if method == 'feddpa':
+                ax.plot(values['epoch'], values['test_before'], label='FedDPA', linewidth=linewidth, color=color)
+            if method == 'fedfed':
+                ax.plot(values['epoch'], values['test_before'], label='FedFed', linewidth=linewidth, color=color)
+            if method == 'fedpac':
+                ax.plot(values['epoch'], values['test_before'], label='FedPAC', linewidth=linewidth, color=color)
+            if method == 'fedproto':
+                ax.plot(values['epoch'], values['test_before'], label='FedProto', linewidth=linewidth, color=color)
+            if method == 'ours':
+                ax.plot(values['epoch'], values['test_before'], label='Ours', linewidth=linewidth + 0.8, color=color)
+            # if method == 'psfl+fisher':
+            #     ax.plot(values['epoch'], values['test_before'], label='S.FedEDT+Fisher', linewidth=linewidth + 0.6, color=color)
+            # if method == 'psfl+obp':
+            #     ax.plot(values['epoch'], values['test_before'], label='S.FedEDT+OBD', linewidth=linewidth + 0.6, color=color)
+            # if method == 'sfl':
+            #     ax.plot(values['epoch'], values['test_before'], label='SFL', linewidth=linewidth, color=color)
 
-    # 设置y轴从40开始（仅针对指定的数据集）
-    if dataset in ['EMNIST', 'FMNIST', ]:
-        ax.set_ylim(bottom=70)
-    if dataset in ['MNIST']:
-        ax.set_ylim(bottom=90)
-    if dataset in ['SVHN']:
-        ax.set_ylim(bottom=65)
+        # 设置y轴从40开始（仅针对指定的数据集）
+        if dataset in ['CIFAR10',]:
+            ax.set_ylim(bottom=20)
+        if dataset in ['FMNIST']:
+            ax.set_ylim(bottom=20)
+        if dataset in ['SVHN']:
+            ax.set_ylim(bottom=65)
 
-    # 添加网格
-    ax.grid(True, linestyle='--', alpha=0.7, color='gray', linewidth=0.5)
+        # 添加网格
+        ax.grid(True, linestyle='--', alpha=0.7, color='gray', linewidth=0.5)
 
-    # 设置图表标题和标签
-    ax.set_title(f'{dataset}', fontsize=14)  # 设置为大写字母
-    ax.set_xlabel('Epoch', fontsize=14)
-    ax.set_ylabel('Accuracy (%)', fontsize=14)
+        # 设置图表标题和标签
+        ax.set_title(f'{dataset} ($\\alpha$ = 0.1)', fontsize=20)  # 设置为大写字母
+        ax.set_xlabel('Epochs', fontsize=20)
+        ax.set_ylabel('Accuracy (%)', fontsize=20)
 
-    # 排序并显示图例（按字母顺序排列方法）
-    handles, labels = ax.get_legend_handles_labels()
-    # 按照标签（method）字母顺序排序
-    sorted_handles_labels = sorted(zip(labels, handles))
-    sorted_labels, sorted_handles = zip(*sorted_handles_labels)
-    ax.legend(sorted_handles, sorted_labels, ncol=2, fontsize=9, )
+        # 排序并显示图例（按字母顺序排列方法）
+        handles, labels = ax.get_legend_handles_labels()
+        # 按照标签（method）字母顺序排序
+        sorted_handles_labels = sorted(zip(labels, handles))
+        sorted_labels, sorted_handles = zip(*sorted_handles_labels)
+        ax.legend(sorted_handles, sorted_labels, ncol=2, fontsize=18, )
+        ax.tick_params(labelsize=16)
 
 # 调整布局
 plt.tight_layout()
@@ -161,7 +167,7 @@ if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
 # 保存图像到文件夹
-output_path = os.path.join(output_dir, 'convergence_0.1.pdf')
+output_path = os.path.join(output_dir, 'convergence_0.1_CIFAR100.pdf')
 plt.savefig(output_path)
 
 # 显示图形

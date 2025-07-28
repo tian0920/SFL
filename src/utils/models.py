@@ -10,6 +10,27 @@ from torch import Tensor
 
 from src.utils.constants import DATA_SHAPE, INPUT_CHANNELS, NUM_CLASSES
 
+def replace_bn(module, norm_type='batch', num_groups=32):
+    """
+    递归替换模块中的 BatchNorm2d 为 GroupNorm 或 LayerNorm。
+    norm_type: 'batch' | 'group' | 'layer'
+    num_groups: GroupNorm 的分组数
+    """
+    for name, child in module.named_children():
+        if isinstance(child, nn.BatchNorm2d):
+            num_channels = child.num_features
+            if norm_type == 'group':
+                new_norm = nn.GroupNorm(num_groups=min(num_groups, num_channels), num_channels=num_channels)
+            elif norm_type == 'layer':
+                # LayerNorm 期望的是最后几个维度，因此对 [C, H, W] 使用 [C, 1, 1]
+                new_norm = nn.LayerNorm([num_channels, 1, 1])
+            elif norm_type == 'batch':
+                continue  # 不替换
+            else:
+                raise ValueError(f"Unsupported norm_type: {norm_type}")
+            setattr(module, name, new_norm)
+        else:
+            replace_bn(child, norm_type=norm_type, num_groups=num_groups)
 
 class DecoupledModel(nn.Module):
     def __init__(self):
@@ -127,7 +148,6 @@ class DecoupledModel(nn.Module):
         获取分类器的输出（不经过特征提取部分，仅分类器部分）。
         """
         return self.classifier(x)
-
 
 # CNN used in FedAvg
 class FedAvgCNN(DecoupledModel):
@@ -374,6 +394,32 @@ class DenseNet(DecoupledModel):
         return super().forward(x)
 
 
+# class ResNet(DecoupledModel):
+#     archs = {
+#         "18": (models.resnet18, models.ResNet18_Weights.DEFAULT),
+#         "34": (models.resnet34, models.ResNet34_Weights.DEFAULT),
+#         "50": (models.resnet50, models.ResNet50_Weights.DEFAULT),
+#         "101": (models.resnet101, models.ResNet101_Weights.DEFAULT),
+#         "152": (models.resnet152, models.ResNet152_Weights.DEFAULT),
+#     }
+#
+#     def __init__(self, version, dataset, pretrained):
+#         super().__init__()
+#
+#         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
+#         resnet: models.ResNet = self.archs[version][0](
+#             weights=self.archs[version][1] if pretrained else None
+#         )
+#         self.base = resnet
+#         self.classifier = nn.Linear(self.base.fc.in_features, NUM_CLASSES[dataset])
+#         self.base.fc = nn.Identity()
+#
+#     def forward(self, x: Tensor) -> Tensor:
+#         # if input is grayscale, repeat it to 3 channels
+#         if x.shape[1] == 1:
+#             x = x.broadcast_to(x.shape[0], 3, *x.shape[2:])
+#         return super().forward(x)
+
 class ResNet(DecoupledModel):
     archs = {
         "18": (models.resnet18, models.ResNet18_Weights.DEFAULT),
@@ -383,23 +429,27 @@ class ResNet(DecoupledModel):
         "152": (models.resnet152, models.ResNet152_Weights.DEFAULT),
     }
 
-    def __init__(self, version, dataset, pretrained):
+    def __init__(self, version, dataset, pretrained=True, norm_type='batch', gn_groups=32):
         super().__init__()
 
-        # NOTE: If you don't want parameters pretrained, set `pretrained` as False
+        # 加载 ResNet 基础模型
         resnet: models.ResNet = self.archs[version][0](
             weights=self.archs[version][1] if pretrained else None
         )
+
+        # 可选归一化替换
+        if norm_type != 'batch':
+            replace_bn(resnet, norm_type=norm_type, num_groups=gn_groups)
+
+        # 替换分类头
         self.base = resnet
         self.classifier = nn.Linear(self.base.fc.in_features, NUM_CLASSES[dataset])
         self.base.fc = nn.Identity()
 
     def forward(self, x: Tensor) -> Tensor:
-        # if input is grayscale, repeat it to 3 channels
         if x.shape[1] == 1:
             x = x.broadcast_to(x.shape[0], 3, *x.shape[2:])
         return super().forward(x)
-
 
 class MobileNet(DecoupledModel):
     archs = {
@@ -532,7 +582,8 @@ MODELS = {
     "2nn": TwoNN,
     "squeeze0": partial(SqueezeNet, version="0"),
     "squeeze1": partial(SqueezeNet, version="1"),
-    "res18": partial(ResNet, version="18"),
+    # "res18": partial(ResNet, version="18"),
+    "res18": partial(ResNet, version="18", norm_type="group", gn_groups=32),
     "res34": partial(ResNet, version="34"),
     "res50": partial(ResNet, version="50"),
     "res101": partial(ResNet, version="101"),

@@ -26,13 +26,13 @@ def run_command(command, log_file):
 
 def main():
     # 定义参数
-    # datasets_name = ['cifar10', 'cifar100', 'fmnist', 'cinic10', ]
+    datasets_name = ['fmnist']
     # datasets_name = ['cifar100', 'fmnist', 'cinic10', ]  # 'svhn', 'fmnist', 'mnist',
-    datasets_name = ['cifar100', ]
+    # datasets_name = ['cifar10', ]
 
     # methods = ['fedpac', 'fedfed', 'fedproto', 'fedavg', 'local',]  #  'fedproto', 'fedpac', 'fedfed',
-    # methods = ['feddpa', 'fedala', 'fedah', 'fedrod', ]
-    methods = ['fedpda',]
+    # methods = ['feddpa', 'fedala', 'fedah', 'fedrod', 'fedas']
+    methods = ['fedpda',]  # 'fedselect'
 
     # SeqFedEDT: 'floco', 'fedavg', 'local', 'fedper', 'apfl', 'lgfedavg', 'fedrep', 'pfedfda', 'fedrod', 'fedproto',
     # SeqFedRPC: 'fedavg', 'local', 'sfl', 'cfl', 'feddyn', 'fedfomo', 'fedper', 'fedrep', 'pfedsim', 'lgfedavg', 'flute',
@@ -44,7 +44,7 @@ def main():
     # 遍历每个方法和数据集的组合
     for method in methods:
         for dataset in datasets_name:
-            if dataset in ['tiny_imagenet']:
+            if method in ['tiny_imagenet']:
                 command = [
                     sys.executable,
                     'main.py',

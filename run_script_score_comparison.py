@@ -25,82 +25,122 @@ def run_command(command, log_file):
             print(f"命令成功完成，日志文件: {log_file}")
 
 
-def build_command(method, dataset, ig_ratio, alpha_tmp, score=None):
+def build_command(method, dataset, align, proto, score=None):
     """
     根据参数构建命令
     """
-    if method == 'psfl':
+    if dataset == 'cifar10':
         return [
             sys.executable,
             'main.py',
             f'method={method}',
             f'dataset.name={dataset}',
-            f'{method}.ig_ratio={ig_ratio}',
-            f'{method}.alpha={alpha_tmp}',
-            f'{method}.score={score}',
-            'model.name=lenet5',
-            'common.join_ratio=0.5'
+            f'{method}.lambda_align={align}',
+            # f'{method}.temperature=0.2',
+            f'{method}.lambda_proto={proto}',
         ]
+    elif dataset == 'cifar100':
+        return [
+            sys.executable,
+            'main.py',
+            f'method={method}',
+            f'dataset.name={dataset}',
+            f'{method}.lambda_align={align}',
+            # f'{method}.temperature=0.2',
+            f'{method}.lambda_proto={proto}',
+        ]
+    elif dataset == 'fmnist':
+        return [
+            sys.executable,
+            'main.py',
+            f'method={method}',
+            f'dataset.name={dataset}',
+            f'{method}.lambda_align={align}',
+            # f'{method}.temperature=0.2',
+            f'{method}.lambda_proto={proto}',
+        ]
+    # if method in ['fedobp']:
+    #     return [
+    #         sys.executable,
+    #         'main.py',
+    #         f'method={method}',
+    #         f'dataset.name={dataset}',
+    #         f'model.name=res18',
+    #         f'common.global_epoch=400',
+    #         f'{method}.ig_ratio={align}',]
     else:
-        # return [
-        #     sys.executable,
-        #     'main.py',
-        #     f'method={method}',
-        #     f'dataset.name={dataset}',
-        #     f'{method}.fisher_threshold={ig_ratio}',
-        #     'model.name=lenet5',
-        # ]
         return [
             sys.executable,
             'main.py',
             f'method={method}',
             f'dataset.name={dataset}',
-            f'{method}.headfinetune_epoch={ig_ratio}',
+            f'{method}.lambda_align={align}',
+            # f'{method}.temperature=0.2',
+            f'{method}.lambda_proto={proto}',
         ]
 
-
-def build_log_filename(method, dataset, ig_ratio, score=None):
+def build_log_filename(method, dataset, align, proto, score=None):
     """
     根据实验参数构建日志文件名
     """
     if method == 'psfl':
-        return f"{method}+{score}_{dataset}_{ig_ratio}.log"
+        return f"{method}+{score}_{dataset}_{align}.log"
     else:
         # return f"psfl+fisher_{dataset}_{ig_ratio}.log"
-        return f"fedas_{dataset}_epoch_{ig_ratio}.log"
+        # return f"{method}_{dataset}_res18_{align}.log"
+        return f"{method}_{dataset}_{align}_{proto}.log"
+
+def should_skip(log_path):
+    """
+    判断是否应该跳过当前实验：若日志文件存在并包含特定内容，则跳过。
+    """
+    if log_path.exists():
+        content = log_path.read_text(encoding='utf-8', errors='ignore')
+        if "(test) before fine-tuning:" in content:
+            return True
+    return False
 
 
 def main():
     # 定义参数
-    datasets_name = ['cifar100', ] # 'cifar10', 'cifar100', 'svhn', 'fmnist', 'medmnistC', 'mnist', 'emnist'
-    ig_values = [1, 2, 3, 4, 5,] #
-    # tem: 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1,
+    datasets_name = ['cifar10', ] # 'cifar10', 'cifar100', 'svhn', 'fmnist', 'medmnistC', 'mnist', 'emnist'
+    aligns = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1] # 0.1, 0.3, 0.5, 1, 2, 3,
+    protos = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+    # tem: 0.01, 0.05, 0.1, 0.3, 0.5, 0.7, 0.9, 1, 3, 5
     # pro: 0.1, 0.3, 0.5, 0.7, 0.9, 1, 2, 3, 4, 5,
     # epoch: 1, 2, 3, 4, 5,
-    methods = ['fedas',] #  'feddpa', 'psfl',
+    # 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99, 0.999, 0.9999, 0.99999
+    # 0.92, 0.94, 0.96, 0.98, 0.992, 0.994, 0.996, 0.998, 0.9992, 0.9994, 0.9996, 0.9998
+    methods = ['fedpdav2'] #  'feddpa', 'psfl',
     alpha = [0.0]
-    score_list = ['obp', 'diff']
+    score_list = ['obp',]
 
     # 创建一个目录来保存所有日志
-    log_dir = Path("test_experiment")
+    log_dir = Path("test_experiment/FedPDAv2/hyperparam")
     log_dir.mkdir(exist_ok=True)
 
     # 遍历所有组合并运行实验
     for dataset in datasets_name:
         for method in methods:
-            for alpha_tmp in alpha:
-                for ig_ratio in ig_values:
-                    if method == 'psfl':
-                        for score in score_list:
-                            command = build_command(method, dataset, ig_ratio, alpha_tmp, score)
-                            log_filename = build_log_filename(method, dataset, ig_ratio, score)
-                            log_path = log_dir / log_filename
-                            print(f"运行命令: {' '.join(command)}")
-                            run_command(command, log_path)
-                    else:
-                        command = build_command(method, dataset, ig_ratio, alpha_tmp)
-                        log_filename = build_log_filename(method, dataset, ig_ratio)
+            for align in aligns:
+                for proto in protos:
+                    # if method == 'psfl':
+                    #     for score in score_list:
+                    #         command = build_command(method, dataset, ig_ratio, alpha_tmp, score)
+                    #         log_filename = build_log_filename(method, dataset, ig_ratio, score)
+                    #         log_path = log_dir / log_filename
+                    #         print(f"运行命令: {' '.join(command)}")
+                    #         run_command(command, log_path)
+                    # else:
+                        log_filename = build_log_filename(method, dataset, align, proto)
                         log_path = log_dir / log_filename
+
+                        # 如果日志文件已存在并包含指定信息，跳过
+                        if should_skip(log_path):
+                            print(f"跳过已完成的实验日志: {log_filename}")
+                            continue
+
+                        command = build_command(method, dataset, align, proto)
                         print(f"运行命令: {' '.join(command)}")
                         run_command(command, log_path)
 

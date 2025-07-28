@@ -18,7 +18,7 @@ matplotlib.rcParams['axes.grid'] = True  # 启用网格
 matplotlib.rcParams['grid.alpha'] = 0.3  # 网格透明度设置为 0.3
 
 # 假设你有一个目录包含所有CSV文件
-directory = 'experiment_logs/alpha=0.1/ablation'
+directory = 'test_experiment/ablation'
 
 # 读取所有CSV文件
 csv_files = [f for f in os.listdir(directory) if f.endswith('.csv')]
@@ -46,8 +46,8 @@ for file in csv_files:
             ma_before = df['accuracy_test_before'].rolling(window=25).mean()
             ma_after = df['accuracy_test_before'].rolling(window=25).mean()
         else:
-            ma_before = df['accuracy_test_before'].rolling(window=10).mean()
-            ma_after = df['accuracy_test_before'].rolling(window=10).mean()
+            ma_before = df['accuracy_test_before'].rolling(window=5).mean()
+            ma_after = df['accuracy_test_before'].rolling(window=5).mean()
 
         data[dataset][method] = {
             'epoch': df['epoch'],
@@ -61,35 +61,37 @@ datasets = sorted(data.keys(), key=lambda x: x.upper())  # 字母排序并转换
 
 # 自定义配色方案：为每个方法分配固定的颜色
 method_color_map = {
-    'sfl': '#f032e6',  # 紫色
-    'fedavg': '#3cb44b',  # 绿色
-    'local': '#4363d8', # 水蓝色
-    'psfl+obp': '#e6194B',  # 红色
-    'psfl+obp+CLS': '#f58231',  # 橙色
+    'None': '#f032e6',  # 紫色
+    'PCA': '#3cb44b',  # 绿色
+    'PFA': '#4363d8', # 水蓝色
+    'ALL': '#e6194B',  # 红色
+    'Non-Linear': '#f58231',  # 橙色
 }
 
 # 创建子图 2 行 4 列，5:3的比例
-fig, axes = plt.subplots(2, 4, figsize=(20, 8))
-linewidth = 1
+# fig, axes = plt.subplots(1, 1, figsize=(8, 5))
+linewidth = 1.5
 
 # 迭代每个数据集（假设有8个不同的数据集）
 for i, dataset in enumerate(datasets):
-    ax = axes[i // 4, i % 4]  # 计算子图的位置
+    # ax = axes[i // 4, i % 4]  # 计算子图的位置
+
+    fig, ax = plt.subplots(1, 1, figsize=(8, 5))
 
     # 绘制每个方法的test_before，设置线宽为1
     for method, values in data[dataset].items():
         # 获取该方法的固定颜色
         color = method_color_map.get(method, '#000000')  # 如果方法没有定义颜色，默认使用黑色
-        if method == 'fedavg':
-            ax.plot(values['epoch'], values['test_before'], label='FedAvg', linewidth=linewidth, color=color)  # 线条粗细设置为 1
-        if method == 'local':
-            ax.plot(values['epoch'], values['test_before'], label='Local', linewidth=linewidth, color=color)  # 线条粗细设置为 1
-        if method == 'sfl':
-            ax.plot(values['epoch'], values['test_before'], label='SFL', linewidth=linewidth, color=color)  # 线条粗细设置为 1
-        if method == 'psfl+obp':
-            ax.plot(values['epoch'], values['test_before'], label='SeqFedEDT', linewidth=linewidth + 0.6, color=color)  # 线条粗细设置为 1
-        if method == 'psfl+obp+CLS':
-            ax.plot(values['epoch'], values['test_before'], label='SeqFedEDT$^\dag$', linewidth=linewidth, color=color)  # 线条粗细设置为 1
+        if method == 'None':
+            ax.plot(values['epoch'], values['test_before'], label='None', linewidth=linewidth, color=color)  # 线条粗细设置为 1
+        if method == 'PCA':
+            ax.plot(values['epoch'], values['test_before'], label='PCA', linewidth=linewidth, color=color)  # 线条粗细设置为 1
+        if method == 'PFA':
+            ax.plot(values['epoch'], values['test_before'], label='PFA', linewidth=linewidth, color=color)  # 线条粗细设置为 1
+        if method == 'ALL':
+            ax.plot(values['epoch'], values['test_before'], label='ALL', linewidth=linewidth + 0.8, color=color)  # 线条粗细设置为 1
+        if method == 'Non-Linear':
+            ax.plot(values['epoch'], values['test_before'], label='PFA(Non)', linewidth=linewidth, color=color)  # 线条粗细设置为 1
 
     # 设置y轴从40开始（仅针对指定的数据集）
     if dataset in ['emnist', 'fmnist', 'svhn']:
@@ -103,12 +105,13 @@ for i, dataset in enumerate(datasets):
     # 按照标签（method）字母顺序排序
     sorted_handles_labels = sorted(zip(labels, handles))
     sorted_labels, sorted_handles = zip(*sorted_handles_labels)
-    ax.legend(sorted_handles, sorted_labels)
+    ax.legend(sorted_handles, sorted_labels, fontsize=18)
 
     # 设置图表标题和标签
-    ax.set_title(f'{dataset.upper()}', fontsize=14)  # 设置为大写字母
-    ax.set_xlabel('Epoch', fontsize=14)
-    ax.set_ylabel('Accuracy (%)', fontsize=14)
+    ax.set_title(f'{dataset.upper()}', fontsize=20)  # 设置为大写字母
+    ax.set_xlabel('Epochs', fontsize=20)
+    ax.set_ylabel('Accuracy (%)', fontsize=20)
+    ax.tick_params(labelsize=16)
 
 # 确保图像保存的文件夹存在
 output_dir = 'chart'

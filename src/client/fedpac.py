@@ -120,7 +120,6 @@ class FedPACClient(FedAvgClient):
                     logits = self.model.classifier(features)
                     loss_ce = self.criterion(logits, y)
 
-                    loss_mse = 0
                     target_prototypes = features.clone().detach()
                     if self.global_prototypes is not None:
                         for i, label in enumerate(y.cpu().tolist()):

@@ -5,7 +5,7 @@ import re
 import shutil
 
 # 设置根目录
-root_dir = 'D://SFL//out//sflas//cifar10'
+root_dir = 'D://SFL//out//fedpdav2//cifar100'
 
 # 遍历子文件夹
 for folder in os.listdir(root_dir):
