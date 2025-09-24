@@ -26,19 +26,20 @@ def run_command(command, log_file):
 
 def main():
     # 定义参数
-    datasets_name = ['fmnist']
-    # datasets_name = ['cifar100', 'fmnist', 'cinic10', ]  # 'svhn', 'fmnist', 'mnist',
-    # datasets_name = ['cifar10', ]
+    # datasets_name = ['emnist', 'mnist', 'medmnistA', 'medmnistC']
+    # datasets_name = ['cifar10', 'cifar100', 'fmnist', 'svhn', ]  # 'svhn', 'fmnist', 'mnist',
+    datasets_name = ['emnist', ]
 
     # methods = ['fedpac', 'fedfed', 'fedproto', 'fedavg', 'local',]  #  'fedproto', 'fedpac', 'fedfed',
     # methods = ['feddpa', 'fedala', 'fedah', 'fedrod', 'fedas']
-    methods = ['fedpda',]  # 'fedselect'
+    methods = ['fedala']  # 'fedselect'
 
     # SeqFedEDT: 'floco', 'fedavg', 'local', 'fedper', 'apfl', 'lgfedavg', 'fedrep', 'pfedfda', 'fedrod', 'fedproto',
     # SeqFedRPC: 'fedavg', 'local', 'sfl', 'cfl', 'feddyn', 'fedfomo', 'fedper', 'fedrep', 'pfedsim', 'lgfedavg', 'flute',
+    # FedOBP: 'local', 'fedavg', 'fedper', 'apfl', 'lgfedavg', 'fedrep', 'pfedfda', 'flute', 'feddpa', 'floco', 'fedala', 'fedselect'
 
     # for logging
-    log_dir = Path("test_experiment")
+    log_dir = Path("test_experiment/FedOBP/res18_baseline")
     log_dir.mkdir(exist_ok=True)
 
     # 遍历每个方法和数据集的组合

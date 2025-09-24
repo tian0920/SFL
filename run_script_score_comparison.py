@@ -1,6 +1,7 @@
 import subprocess
 import sys
 from pathlib import Path
+import numpy as np
 
 
 def run_command(command, log_file):
@@ -29,45 +30,45 @@ def build_command(method, dataset, align, proto, score=None):
     """
     根据参数构建命令
     """
-    if dataset == 'cifar10':
-        return [
-            sys.executable,
-            'main.py',
-            f'method={method}',
-            f'dataset.name={dataset}',
-            f'{method}.lambda_align={align}',
-            # f'{method}.temperature=0.2',
-            f'{method}.lambda_proto={proto}',
-        ]
-    elif dataset == 'cifar100':
-        return [
-            sys.executable,
-            'main.py',
-            f'method={method}',
-            f'dataset.name={dataset}',
-            f'{method}.lambda_align={align}',
-            # f'{method}.temperature=0.2',
-            f'{method}.lambda_proto={proto}',
-        ]
-    elif dataset == 'fmnist':
-        return [
-            sys.executable,
-            'main.py',
-            f'method={method}',
-            f'dataset.name={dataset}',
-            f'{method}.lambda_align={align}',
-            # f'{method}.temperature=0.2',
-            f'{method}.lambda_proto={proto}',
-        ]
-    # if method in ['fedobp']:
+    # if dataset == 'cifar10':
     #     return [
     #         sys.executable,
     #         'main.py',
     #         f'method={method}',
     #         f'dataset.name={dataset}',
-    #         f'model.name=res18',
-    #         f'common.global_epoch=400',
-    #         f'{method}.ig_ratio={align}',]
+    #         f'{method}.lambda_align={align}',
+    #         # f'{method}.temperature=0.2',
+    #         f'{method}.lambda_proto={proto}',
+    #     ]
+    # elif dataset == 'cifar100':
+    #     return [
+    #         sys.executable,
+    #         'main.py',
+    #         f'method={method}',
+    #         f'dataset.name={dataset}',
+    #         f'{method}.lambda_align={align}',
+    #         # f'{method}.temperature=0.2',
+    #         f'{method}.lambda_proto={proto}',
+    #     ]
+    # elif dataset == 'fmnist':
+    #     return [
+    #         sys.executable,
+    #         'main.py',
+    #         f'method={method}',
+    #         f'dataset.name={dataset}',
+    #         f'{method}.lambda_align={align}',
+    #         # f'{method}.temperature=0.2',
+    #         f'{method}.lambda_proto={proto}',
+    #     ]
+    if method in ['fedobp']:
+        return [
+            sys.executable,
+            'main.py',
+            f'method={method}',
+            f'dataset.name={dataset}',
+            f'model.name=res18',
+            f'common.global_epoch=400',
+            f'{method}.ig_ratio={align}',]
     else:
         return [
             sys.executable,
@@ -87,8 +88,8 @@ def build_log_filename(method, dataset, align, proto, score=None):
         return f"{method}+{score}_{dataset}_{align}.log"
     else:
         # return f"psfl+fisher_{dataset}_{ig_ratio}.log"
-        # return f"{method}_{dataset}_res18_{align}.log"
-        return f"{method}_{dataset}_{align}_{proto}.log"
+        return f"{method}_{dataset}_res18_{align}.log"
+        # return f"{method}_{dataset}_{align}_{proto}.log"
 
 def should_skip(log_path):
     """
@@ -104,19 +105,19 @@ def should_skip(log_path):
 def main():
     # 定义参数
     datasets_name = ['cifar10', ] # 'cifar10', 'cifar100', 'svhn', 'fmnist', 'medmnistC', 'mnist', 'emnist'
-    aligns = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1] # 0.1, 0.3, 0.5, 1, 2, 3,
-    protos = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+    aligns = np.round(np.arange(0.9985, 0.99852, 0.000002), 7).tolist()
+    # aligns = [] # 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1
+    protos = [None]
     # tem: 0.01, 0.05, 0.1, 0.3, 0.5, 0.7, 0.9, 1, 3, 5
     # pro: 0.1, 0.3, 0.5, 0.7, 0.9, 1, 2, 3, 4, 5,
     # epoch: 1, 2, 3, 4, 5,
     # 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99, 0.999, 0.9999, 0.99999
-    # 0.92, 0.94, 0.96, 0.98, 0.992, 0.994, 0.996, 0.998, 0.9992, 0.9994, 0.9996, 0.9998
-    methods = ['fedpdav2'] #  'feddpa', 'psfl',
+    methods = ['fedobp'] #  'feddpa', 'psfl',
     alpha = [0.0]
     score_list = ['obp',]
 
     # 创建一个目录来保存所有日志
-    log_dir = Path("test_experiment/FedPDAv2/hyperparam")
+    log_dir = Path("test_experiment/FedOBP")  # /FedPDAv2/hyperparam
     log_dir.mkdir(exist_ok=True)
 
     # 遍历所有组合并运行实验
