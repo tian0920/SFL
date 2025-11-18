@@ -26,7 +26,7 @@ def run_command(command, log_file):
             print(f"命令成功完成，日志文件: {log_file}")
 
 
-def build_command(method, dataset, align, proto, score=None):
+def build_command(method, dataset, align, proto, tem, score=None):
     """
     根据参数构建命令
     """
@@ -75,12 +75,13 @@ def build_command(method, dataset, align, proto, score=None):
             'main.py',
             f'method={method}',
             f'dataset.name={dataset}',
-            f'{method}.lambda_align={align}',
-            # f'{method}.temperature=0.2',
+            # f'{method}.lambda_align={align}',
+            f'{method}.gen_mult={align}',
+            f'{method}.temperature={tem}',
             f'{method}.lambda_proto={proto}',
         ]
 
-def build_log_filename(method, dataset, align, proto, score=None):
+def build_log_filename(method, dataset, align, proto, tem, score=None):
     """
     根据实验参数构建日志文件名
     """
@@ -88,7 +89,7 @@ def build_log_filename(method, dataset, align, proto, score=None):
         return f"{method}+{score}_{dataset}_{align}.log"
     else:
         # return f"psfl+fisher_{dataset}_{ig_ratio}.log"
-        return f"{method}_{dataset}_res18_{align}.log"
+        return f"nonlinear_{method}_{dataset}_{align}_{proto}_{tem}.log"
         # return f"{method}_{dataset}_{align}_{proto}.log"
 
 def should_skip(log_path):
@@ -104,20 +105,22 @@ def should_skip(log_path):
 
 def main():
     # 定义参数
-    datasets_name = ['cifar10', ] # 'cifar10', 'cifar100', 'svhn', 'fmnist', 'medmnistC', 'mnist', 'emnist'
-    aligns = np.round(np.arange(0.9985, 0.99852, 0.000002), 7).tolist()
+    datasets_name = ['fmnist',] # 'cifar10', 'cifar100', 'svhn', 'fmnist', 'medmnistC', 'mnist', 'emnist'
+    # aligns = np.round(np.arange(0.1, 1, 0.2), 2).tolist()
     # aligns = [] # 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1
-    protos = [None]
+    protos = [0.01, 0.05, 0.1, 0.3, 0.5, 0.7, 0.9, 1]  # 0.1, 0.3, 0.5, 0.7, 0.9, 1, 2, 3, 4, 5
+    tems = [0.1, 0.3, 0.5, 0.7, 0.9, 1, 3, 5, 7, 9]
+    aligns= [1, 2, 3]  # gen_mult: nonlinear( 2, 3)
     # tem: 0.01, 0.05, 0.1, 0.3, 0.5, 0.7, 0.9, 1, 3, 5
     # pro: 0.1, 0.3, 0.5, 0.7, 0.9, 1, 2, 3, 4, 5,
     # epoch: 1, 2, 3, 4, 5,
     # 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99, 0.999, 0.9999, 0.99999
-    methods = ['fedobp'] #  'feddpa', 'psfl',
+    methods = ['fedpdav2'] #  'feddpa', 'psfl',
     alpha = [0.0]
     score_list = ['obp',]
 
     # 创建一个目录来保存所有日志
-    log_dir = Path("test_experiment/FedOBP")  # /FedPDAv2/hyperparam
+    log_dir = Path("CSIS/nonlinear")  # /FedPDAv2/hyperparam
     log_dir.mkdir(exist_ok=True)
 
     # 遍历所有组合并运行实验
@@ -125,25 +128,26 @@ def main():
         for method in methods:
             for align in aligns:
                 for proto in protos:
-                    # if method == 'psfl':
-                    #     for score in score_list:
-                    #         command = build_command(method, dataset, ig_ratio, alpha_tmp, score)
-                    #         log_filename = build_log_filename(method, dataset, ig_ratio, score)
-                    #         log_path = log_dir / log_filename
-                    #         print(f"运行命令: {' '.join(command)}")
-                    #         run_command(command, log_path)
-                    # else:
-                        log_filename = build_log_filename(method, dataset, align, proto)
-                        log_path = log_dir / log_filename
+                    for tem in tems:
+                        # if method == 'psfl':
+                        #     for score in score_list:
+                        #         command = build_command(method, dataset, ig_ratio, alpha_tmp, score)
+                        #         log_filename = build_log_filename(method, dataset, ig_ratio, score)
+                        #         log_path = log_dir / log_filename
+                        #         print(f"运行命令: {' '.join(command)}")
+                        #         run_command(command, log_path)
+                        # else:
+                            log_filename = build_log_filename(method, dataset, align, proto, tem)
+                            log_path = log_dir / log_filename
 
-                        # 如果日志文件已存在并包含指定信息，跳过
-                        if should_skip(log_path):
-                            print(f"跳过已完成的实验日志: {log_filename}")
-                            continue
+                            # 如果日志文件已存在并包含指定信息，跳过
+                            if should_skip(log_path):
+                                print(f"跳过已完成的实验日志: {log_filename}")
+                                continue
 
-                        command = build_command(method, dataset, align, proto)
-                        print(f"运行命令: {' '.join(command)}")
-                        run_command(command, log_path)
+                            command = build_command(method, dataset, align, proto, tem)
+                            print(f"运行命令: {' '.join(command)}")
+                            run_command(command, log_path)
 
     print("\n所有实验已完成。")
 

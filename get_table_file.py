@@ -4,8 +4,10 @@ import numpy as np
 from collections import defaultdict
 
 # 指定log文件夹路径
-log_dir = "test_experiment/FedOBP/res18_baseline"  # /baseline/alpha=0.5
+log_dir = "CSIS/res18_baseline"  # /res18_baseline  nonlinear
 # log_dir = "test_experiment/FedPDAv2/hyperparam"
+
+baseline = True
 
 # 初始化存储结构：方法 → 数据集 → 数值
 data = defaultdict(dict)
@@ -19,20 +21,36 @@ for filename in os.listdir(log_dir):
         # print(name_parts)
         if len(name_parts) < 2:
             continue  # 不符合命名规则跳过
-        method, dataset = name_parts[0], name_parts[-1]
-        datasets.add(dataset)
-        # if name_parts[2] == "0":
-        #     # 读取文件内容
-        with open(os.path.join(log_dir, filename), "r", encoding='utf-8') as f:
-            content = f.read()
+        if baseline:
+            method, dataset = name_parts[0], name_parts[-1]
+            datasets.add(dataset)
 
-        # 正则提取百分比数值
-        match = re.search(r"before fine-tuning:\s*([\d.]+)%", content)
-        if match:
-            value = match.group(1)
-            data[method][dataset] = value
+            with open(os.path.join(log_dir, filename), "r", encoding='utf-8') as f:
+                content = f.read()
+
+            # 正则提取百分比数值
+            match = re.search(r"before fine-tuning:\s*([\d.]+)%", content)
+            if match:
+                value = match.group(1)
+                data[method][dataset] = value
+            else:
+                data[method][dataset] = "N/A"  # 没有找到则标N/A
+
         else:
-            data[method][dataset] = "N/A"  # 没有找到则标N/A
+            method, dataset, contral1, contral2 = name_parts[2], name_parts[-1], name_parts[-2], name_parts[-3]
+            datasets.add(dataset)
+
+            if contral1 == "0.5" and contral2 == "2":
+                with open(os.path.join(log_dir, filename), "r", encoding='utf-8') as f:
+                    content = f.read()
+
+                # 正则提取百分比数值
+                match = re.search(r"before fine-tuning:\s*([\d.]+)%", content)
+                if match:
+                    value = match.group(1)
+                    data[method][dataset] = value
+                else:
+                    data[method][dataset] = "N/A"  # 没有找到则标N/A
 
 # 构建Markdown表格
 datasets = sorted(datasets)

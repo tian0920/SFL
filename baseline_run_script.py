@@ -24,22 +24,32 @@ def run_command(command, log_file):
         else:
             print(f"命令成功完成，日志文件: {log_file}")
 
+def should_skip(log_path):
+    """
+    判断是否应该跳过当前实验：若日志文件存在并包含特定内容，则跳过。
+    """
+    if log_path.exists():
+        content = log_path.read_text(encoding='utf-8', errors='ignore')
+        if "(test) before fine-tuning:" in content:
+            return True
+    return False
+
 def main():
     # 定义参数
     # datasets_name = ['emnist', 'mnist', 'medmnistA', 'medmnistC']
     # datasets_name = ['cifar10', 'cifar100', 'fmnist', 'svhn', ]  # 'svhn', 'fmnist', 'mnist',
-    datasets_name = ['emnist', ]
+    datasets_name = ['cifar10', 'cifar100', 'fmnist', 'svhn',]
 
-    # methods = ['fedpac', 'fedfed', 'fedproto', 'fedavg', 'local',]  #  'fedproto', 'fedpac', 'fedfed',
+    # methods = ['fedpac', 'fedfed', 'fedproto', 'fedavg', 'local', ]  #  'fedproto', 'fedpac', 'fedfed',
     # methods = ['feddpa', 'fedala', 'fedah', 'fedrod', 'fedas']
-    methods = ['fedala']  # 'fedselect'
+    methods = ['fedpac']  # 'fedselect'
 
     # SeqFedEDT: 'floco', 'fedavg', 'local', 'fedper', 'apfl', 'lgfedavg', 'fedrep', 'pfedfda', 'fedrod', 'fedproto',
     # SeqFedRPC: 'fedavg', 'local', 'sfl', 'cfl', 'feddyn', 'fedfomo', 'fedper', 'fedrep', 'pfedsim', 'lgfedavg', 'flute',
     # FedOBP: 'local', 'fedavg', 'fedper', 'apfl', 'lgfedavg', 'fedrep', 'pfedfda', 'flute', 'feddpa', 'floco', 'fedala', 'fedselect'
 
     # for logging
-    log_dir = Path("test_experiment/FedOBP/res18_baseline")
+    log_dir = Path("CSIS")
     log_dir.mkdir(exist_ok=True)
 
     # 遍历每个方法和数据集的组合
@@ -63,6 +73,11 @@ def main():
             # logging
             log_filename = f"{method}_{dataset}.log"
             log_path = log_dir / log_filename
+
+            # 如果日志文件已存在并包含指定信息，跳过
+            if should_skip(log_path):
+                print(f"跳过已完成的实验日志: {log_filename}")
+                continue
 
             print(f"运行命令: {' '.join(command)}")
             run_command(command, log_path)

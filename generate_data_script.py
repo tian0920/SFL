@@ -41,8 +41,8 @@ def main():
     # 在这里输入你的 cn, a, d 参数
     cn = 100
     a = 0.1
-    # d = ['cifar10', 'cifar100', 'svhn', 'emnist',] # 'cifar10', 'cifar100', 'svhn', 'fmnist', 'medmnistA', 'medmnistC', 'mnist', 'cifar100', 'cinic10', 'fmnist',
-    d = ['svhn',]
+    d = ['cifar10', 'cifar100', 'svhn', 'fmnist',] # 'cifar10', 'cifar100', 'svhn', 'fmnist', 'medmnistA', 'medmnistC', 'mnist', 'cifar100', 'cinic10', 'fmnist',
+    # d = ['svhn',]
 
     success = generate_data(cn, a, d)
 

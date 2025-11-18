@@ -305,7 +305,7 @@ class FedAvgClient:
             "after": {"train": Metrics(), "val": Metrics(), "test": Metrics()},
         }
 
-        results["before"] = self.evaluate()
+        results["before"] = self.evaluate()   # before + after 依次测试
         if self.args.common.test.client.finetune_epoch > 0:
             frz_params_dict = deepcopy(self.model.state_dict())
             self.finetune()

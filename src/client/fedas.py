@@ -49,11 +49,11 @@ class FedASClient(FedAvgClient):
             self.prev_model.load_state_dict(package["prev_model_state"])
         else:
             self.prev_model.load_state_dict(self.model.state_dict())
-        if not self.testing:
-            self.align_federated_parameters()
-        else:
+        # if not self.testing:
+        self.align_federated_parameters()
+        # else:
             # FedAS evaluates clients' personalized models
-            self.model.load_state_dict(self.prev_model.state_dict())
+            # self.model.load_state_dict(self.prev_model.state_dict())
 
     def align_federated_parameters(self):
         self.prev_model.eval()
